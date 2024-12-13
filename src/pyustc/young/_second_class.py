@@ -12,6 +12,31 @@ def strptime(s: str) -> datetime.datetime:
     if not s: return
     return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
+class TimePeriod:
+    def __init__(self, start: datetime.datetime | str, end: datetime.datetime | str = None):
+        if isinstance(start, str):
+            start = strptime(start)
+        if not end:
+            end = start
+        elif isinstance(end, str):
+            end = strptime(end)
+        if start > end:
+            raise ValueError("The start time should be earlier than the end time")
+        self.start = start
+        self.end = end
+
+    def is_contain(self, other: Self):
+        return self.start <= other.start and self.end >= other.end
+
+    def is_overlap(self, other: Self):
+        return self.start <= other.end and self.end >= other.start
+
+    def __contains__(self, time: datetime.datetime):
+        return self.start <= time <= self.end
+
+    def __repr__(self):
+        return f"<TimePeriod {self.start} - {self.end}>"
+
 class Module(Tag):
     def __init__(self, value: str, text: str):
         self.value = value
@@ -122,8 +147,12 @@ class SecondClass:
         return strptime(self.data["createTime"])
 
     @property
-    def apply_endtime(self):
-        return strptime(self.data["applyEt"])
+    def apply_time(self):
+        return TimePeriod(self.data["applySt"], self.data["applyEt"])
+
+    @property
+    def hold_time(self):
+        return TimePeriod(self.data["st"], self.data["et"])
 
     @property
     def tel(self) -> str:
@@ -144,11 +173,15 @@ class SecondClass:
         return self.data["peopleNum"]
 
     @property
+    def applied(self) -> bool:
+        return self.data["booleanRegistration"] == 1
+
+    @property
     def applyable(self):
         """
         This method will check the status and the number of applicants.
         """
-        return self.status_code == 26 and self.apply_num < (self.apply_limit or 0)
+        return self.status_code == 26 and not self.applied and self.apply_num < (self.apply_limit or 0)
 
     @property
     def module(self):
@@ -173,12 +206,12 @@ class SecondClass:
         return self.data["conceive"]
 
     @property
-    def is_category(self) -> bool:
+    def is_series(self) -> bool:
         return self.data["itemCategory"] == "1"
 
     @property
     def children(self):
-        if self._children or not self.is_category:
+        if self._children or not self.is_series:
             return self._children
         url = "item/scItem/selectSignChirdItem"
         params = {
@@ -217,21 +250,44 @@ class SecondClass:
         if data["success"]: return True
         raise RuntimeError(data["message"])
 
+    def cancel_apply(self) -> bool:
+        """
+        Cancel the application.
+        """
+        url = f"item/scItemRegistration/cancellRegistration/{self.id}"
+        data = self._interface.request(url, "post")
+        if data["success"]: return True
+        raise RuntimeError(data["message"])
+
     def __repr__(self):
-        if self.is_category:
-            return f"<SecondClass {repr(self.name)} Category>"
+        if self.is_series:
+            return f"<SecondClass {repr(self.name)} Series>"
         return f"<SecondClass {repr(self.name)}>"
 
 class SCFilter(BaseFilter):
     """
     The filter for the second class.
     """
-    def __init__(self, name: str = None, module: Module = None, department: Department = None, labels: list[Label] = None, fuzzy_name: bool = True):
+    def __init__(
+            self,
+            name: str = None,
+            time_period: TimePeriod = None,
+            module: Module = None,
+            department: Department = None,
+            labels: list[Label] = None,
+            fuzzy_name: bool = True,
+            strict_time: bool = False
+        ):
+        """
+        The arg `fuzzy_name` is used to determine whether the name should be fuzzy matched.
+        """
         self.name = name or ""
+        self.time_period = time_period
         self.module = module
         self.department = department
         self.labels = labels or []
         self.fuzzy_name = fuzzy_name
+        self.strict_time = strict_time
 
     def add_label(self, label: Label):
         if not self.labels:
@@ -257,10 +313,16 @@ class SCFilter(BaseFilter):
                 return False
             if self.module and self.module.value != sc.module.value:
                 return False
-            # if self.deptid and self.deptid != sc.data["businessDeptId"]:
-            #     return False
+            if self.department and self.department.id != sc.department.id:
+                return False
             if self.labels and not any(i in sc.labels for i in self.labels):
                 return False
         if not self.fuzzy_name and self.name != sc.name:
             return False
+        if self.time_period:
+            if self.strict_time:
+                if not self.time_period.is_contain(sc.hold_time):
+                    return False
+            elif not self.time_period.is_overlap(sc.hold_time):
+                return False
         return True

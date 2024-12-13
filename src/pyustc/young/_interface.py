@@ -50,6 +50,6 @@ class Interface:
                 max -= 1
                 if not max:
                     break
-            if page >= result["pages"]:
+            if page * size >= result["total"]:
                 break
             page += 1

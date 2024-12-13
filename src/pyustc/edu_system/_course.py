@@ -6,6 +6,9 @@ class Place:
         self.building: str = data["building"]
         self.campus: str = data["campus"]
 
+    def include(self, place: str):
+        return place in self.name or place in self.building or place in self.campus
+
     def __repr__(self):
         return self.name
 
@@ -52,7 +55,7 @@ class CourseTable:
         self.courses = [Course(i) for i in data["activities"]]
         self.week = week
 
-    def get_courses(self, weekday: int = None, unit: int = None, place: str = None):
+    def get_courses(self, weekday: int = None, unit: int = None, place: Place | str = None):
         """
         Get courses that meet the conditions.
         """
@@ -62,8 +65,12 @@ class CourseTable:
                 continue
             if unit and not i.unit[0] <= unit <= i.unit[1]:
                 continue
-            if place and i.place != place:
-                continue
+            if place:
+                if isinstance(place, str):
+                    if not i.place.include(place):
+                        continue
+                elif i.place != place:
+                    continue
             courses.append(i)
         return courses
 
