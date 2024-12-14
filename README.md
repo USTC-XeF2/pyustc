@@ -7,23 +7,25 @@
 
 A Python package that allows for quick use of USTC network services.
 
+## Features
+
+- **Unified Identity Authentication System**: Simplifies login and session management.
+- **Educational System**: Access course table, grades, and course planning tools.
+- **Young Platform**: Manage Second Classes.
+
 ## Installation
+
+Install PyUSTC via pip:
 
 ```bash
 pip install pyustc
 ```
 
-If you want to use the default validate code processer, you need to install `pytesseract` as well:
+To use CAPTCHA processing, see [here](https://github.com/USTC-XeF2/pyustc/wiki/passport/code-processor).
 
-```bash
-pip install pytesseract
-```
+## Quick Start
 
-And you also need to install `tesseract` on your system from [here](https://github.com/tesseract-ocr/tesseract/releases/latest).
-
-## Usage
-
-The project is based on the Unified Identity Authentication System of USTC, here is an example of how to login:
+Here's an example of logging in via the UIAS:
 
 ```python
 from pyustc import Passport
@@ -32,25 +34,7 @@ passport = Passport()
 passport.login('username', 'password')
 ```
 
-If you have already logged in, you can save the token so that you don't need to login again next time:
-
-```python
-passport.save_token('token.json')
-```
-
-And then you can login next time with the saved token
-
-```python
-passport = Passport('token.json')
-```
-
-After you have logged in, you can use the `passport` object to access other services. For example, you can get your personal information:
-
-```python
-info = passport.get_info()
-```
-
-Or you can use the `EduSystem` to get your course table:
+Access your course table via the EduSystem module:
 
 ```python
 from pyustc import EduSystem
@@ -60,6 +44,12 @@ table = es.get_course_table()
 for course in table.courses:
     print(course)
 ```
+
+For more examples and detailed documentation, see [here](https://github.com/USTC-XeF2/pyustc/wiki).
+
+## Contributing
+
+We welcome contributions of all types! Submit issues, code, or suggestions via [GitHub](https://github.com/USTC-XeF2/pyustc).
 
 ## License
 
