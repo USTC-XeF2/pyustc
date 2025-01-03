@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyustc"
-version = "0.0.2"
+version = "0.1.0"
 authors = [
   { name="XeF2", email="xef2@mail.ustc.edu.cn" },
 ]

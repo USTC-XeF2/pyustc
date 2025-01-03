@@ -43,11 +43,25 @@ class YouthService:
             e.args = ("Failed to get user info",)
             raise e
 
+    def _get_second_class(self, name: str, filter: SCFilter, url: str, size: int):
+        if not filter:
+            filter = SCFilter()
+        if name and not filter.name:
+            filter.name = name
+        params = filter.generate_params()
+        try:
+            for i in self._interface.page_search(url, params, -1, size):
+                sc = SecondClass.from_dict(i)
+                if filter.check(sc, only_strict = True):
+                    yield sc
+        except RuntimeError as e:
+            e.args = ("Failed to get second class",)
+            raise e
+
     def get_second_class(
             self,
             name: str = None,
             filter: SCFilter = None,
-            participated: bool = False,
             apply_ended: bool = False,
             expand_series: bool = False,
             max: int = -1,
@@ -58,37 +72,42 @@ class YouthService:
 
         The arg `name` is valid when `filter` is `None` or `filter.name` is unset.
 
-        The arg `apply_ended` will be ignored if `participated` is True.
+        If `expand_series` is True, the function will return all the children of the series.
+        And the `filter` will be applied to both the series and the children.
         """
-        if participated:
-            url = "item/scParticipateItem/list"
-        else:
-            url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
-        if not filter:
-            filter = SCFilter()
-        if name and not filter.name:
-            filter.name = name
-        params = filter.generate_params()
-        try:
-            for i in self._interface.page_search(url, params, -1, size):
-                if participated: del i["applyNum"]
-                sc = SecondClass.from_dict(i)
-                if filter.check(sc, only_strict = True):
-                    if expand_series and sc.is_series:
-                        for j in sc.children:
-                            if filter.check(j, only_strict = True) and (apply_ended ^ j.status_code <= 26):
-                                yield j
-                                max -= 1
-                            if not max:
-                                break
-                    else:
-                        yield sc
+        if not max: return
+        url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
+        for sc in self._get_second_class(name, filter, url, size):
+            if expand_series and sc.is_series:
+                for i in sc.children:
+                    if filter.check(i, only_strict = True) and (apply_ended ^ (i.status_code <= 26)):
+                        yield i
                         max -= 1
                     if not max:
                         break
-        except RuntimeError as e:
-            e.args = ("Failed to get second class",)
-            raise e
+            else:
+                yield sc
+                max -= 1
+            if not max:
+                break
+
+    def get_participated_second_class(
+            self,
+            name: str = None,
+            filter: SCFilter = None,
+            max: int = -1,
+            size: int = 20
+        ):
+        """
+        Get the specific second class list that the user has participated in.
+        """
+        if not max: return
+        for sc in self._get_second_class(name, filter, "item/scParticipateItem/list", size):
+            del sc.data["applyNum"]
+            yield sc
+            max -= 1
+            if not max:
+                break
 
     def auto_cancel_and_apply(self, sc: SecondClass, force: bool = False) -> bool:
         """

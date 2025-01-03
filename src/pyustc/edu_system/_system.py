@@ -5,6 +5,7 @@ from bs4 import BeautifulSoup
 from ..url import generate_url
 from ..passport import Passport
 from ._course import CourseTable
+from ._select import CourseSelectionSystem
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -37,11 +38,11 @@ class EduSystem:
             if "selected" in option.attrs:
                 self._semesters["now"] = value
 
-    def _request(self, url: str, method: str = "get", params: dict[str] = {}):
+    def _request(self, url: str, method: str = "get", **args):
         return self.session.request(
             method,
             generate_url("edu_system", url),
-            params = params,
+            **args,
             allow_redirects = False
         )
 
@@ -56,8 +57,20 @@ class EduSystem:
         """
         Get the course table for the specified week and semester.
         """
+        url = f"for-std/course-table/semester/{self._semesters[semester]}/print-data/{self._student_id}"
         params = {
             "weekIndex": week or ""
         }
-        res = self._request(f"for-std/course-table/semester/{self._semesters[semester]}/print-data/{self._student_id}", params = params)
+        res = self._request(url, params = params)
         return CourseTable(res.json()["studentTableVm"], week)
+
+    def get_open_turns(self) -> dict[int, str]:
+        data = {
+            "bizTypeId": 2,
+            "studentId": self._student_id
+        }
+        res = self._request("ws/for-std/course-select/open-turns", method="post", data=data)
+        return {i["id"]: i["name"] for i in res.json()}
+
+    def get_course_selection_system(self, turn: int):
+        return CourseSelectionSystem(turn, self._student_id, self._request)
