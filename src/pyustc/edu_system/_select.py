@@ -1,4 +1,5 @@
 import json
+import requests
 
 class Course:
     _course_list = {}
@@ -11,6 +12,8 @@ class Course:
         return obj
 
     def __init__(self, data: dict[str]):
+        if hasattr(self, "id"):
+            return
         self.id: int = data["id"]
         self.name: str = data["nameZh"]
         self.code: str = data["code"]
@@ -35,43 +38,44 @@ class Lesson:
         self.limit: int = data["limitCount"]
         self.unit: str = data["unitText"]["text"]
         self.week: str = data["weekText"]["text"]
-        self.weekday: int = data["weekDayPlaceText"]["text"]
+        self.weekday: str = data["weekDayPlaceText"]["text"]
         self.pinned: bool = data.get("pinned", False)
         self.teachers: list[str] = [i["nameZh"] for i in data["teachers"]]
 
     def __repr__(self):
         return f"<Lesson {self.course.name}-{self.code}{(' Pinned' if self.pinned else '')}>"
 
-class Response:
-    def __init__(self, data: dict[str]):
+class AddDropResponse:
+    def __init__(self, type: str, data: dict[str]):
+        self.type = type
         self.success: bool = data["success"]
-        self.error: str = data["errorMessage"]
-        if self.error: self.error = self.error["text"]
+        self.error: str = data.get("errorMessage", {}).get("text")
 
     def __repr__(self):
-        return f"<Response {self.success}{(' ' + self.error) if self.error else ''}>"
+        return f"<Response {self.type} {self.success}{(' ' + self.error) if self.error else ''}>"
 
 class CourseSelectionSystem:
-    def __init__(self, turn: int, student_id: int, request_func):
+    def __init__(self, turn_id: int, student_id: int, request_func):
         self._data = {
-            "turn": turn,
-            "student_id": student_id
+            "turn_id": turn_id,
+            "student_id": student_id,
+            "semester_id": 381
         }
         self._request_func = request_func
         self._addable_lessons = None
 
     @property
-    def turn(self):
-        return self._data["turn"]
+    def turn_id(self):
+        return self._data["turn_id"]
 
     @property
     def student_id(self):
         return self._data["student_id"]
 
-    def _get(self, url: str, data: dict[str] = None) -> dict[str]:
+    def _get(self, url: str, data: dict[str] = None) -> requests.Response:
         if not data:
             data = {
-                "turnId": self.turn,
+                "turnId": self.turn_id,
                 "studentId": self.student_id
             }
         return self._request_func("ws/for-std/course-select/" + url, method="post", data=data)
@@ -92,26 +96,53 @@ class CourseSelectionSystem:
             data = self._get("addable-lessons").json()
         self._addable_lessons = [Lesson(i) for i in data]
         self._data["addable_lessons"] = data
-        "ws/for-std/course-select/add-request"
 
-    def find_lesson(self, code: str) -> Lesson:
+    def find_lessons(
+            self,
+            code: str = None,
+            name: str = None,
+            teacher: str = None,
+            fuzzy: bool = True
+        ) -> list[Lesson]:
+        results = []
+        for lesson in self.addable_lessons:
+            if code:
+                if fuzzy:
+                    if code not in lesson.code: continue
+                else:
+                    if code != lesson.code: continue
+            if name:
+                if fuzzy:
+                    if name not in lesson.course.name: continue
+                else:
+                    if name != lesson.course.name: continue
+            if teacher:
+                if fuzzy:
+                    if not any(teacher in i for i in lesson.teachers): continue
+                else:
+                    if teacher not in lesson.teachers: continue
+            results.append(lesson)   
+        return results
+
+    def get_lesson(self, code: str) -> Lesson:
         for i in self.addable_lessons:
             if i.code == code:
                 return i
         raise ValueError("Lesson not found")
 
-    def get_student_count(self, lesson: Lesson):
-        return self._get("std-count", {
-            "lessonIds[]": lesson.id
-        }).json()[str(lesson.id)]
+    def get_student_counts(self, lessons: list[Lesson]) -> list[tuple[Lesson, int]]:
+        res: dict[str, int] = self._get("std-count", {
+            "lessonIds[]": [lesson.id for lesson in lessons]
+        }).json()
+        return [(lesson, res.get(str(lesson.id))) for lesson in lessons]
 
     def _add_drop_request(self, type: str, lesson: Lesson):
         data = {
-            "courseSelectTurnAssoc": self.turn,
+            "courseSelectTurnAssoc": self.turn_id,
             "studentAssoc": self.student_id,
             "lessonAssoc": lesson.id
         }
-        return Response(self._get("add-drop-response", {
+        return AddDropResponse(type, self._get("add-drop-response", {
             "studentId": self.student_id,
             "requestId": self._get(f"{type}-request", data).text
         }).json())
@@ -130,10 +161,7 @@ class CourseSelectionSystem:
     def load(cls, path: str, es):
         with open(path) as f:
             data = json.load(f)
-        obj = cls(data["turn"], data["student_id"], es._request)
+        obj = cls(data["turn_id"], data["student_id"], es._request)
         if "addable_lessons" in data:
             obj.refresh_addable_lessons(data["addable_lessons"])
         return obj
-
-    def __repr__(self):
-        return f"<CourseSelectionSystem lessons={len(self.lessons)}>"

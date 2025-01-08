@@ -6,6 +6,7 @@ from ..url import generate_url
 from ..passport import Passport
 from ._course import CourseTable
 from ._select import CourseSelectionSystem
+from ._adjust import CourseAdjustmentSystem
 
 headers = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
@@ -72,5 +73,8 @@ class EduSystem:
         res = self._request("ws/for-std/course-select/open-turns", method="post", data=data)
         return {i["id"]: i["name"] for i in res.json()}
 
-    def get_course_selection_system(self, turn: int):
-        return CourseSelectionSystem(turn, self._student_id, self._request)
+    def get_course_selection_system(self, turn_id: int):
+        return CourseSelectionSystem(turn_id, self._student_id, self._request)
+
+    def get_course_adjustment_system(self, turn_id: int, semester: SEMESTER):
+        return CourseAdjustmentSystem(turn_id, self._semesters[semester], self._student_id, self._request)

@@ -21,8 +21,6 @@ Install PyUSTC via pip:
 pip install pyustc
 ```
 
-To use CAPTCHA processing, see [here](https://github.com/USTC-XeF2/pyustc/wiki/passport/code-processor).
-
 ## Quick Start
 
 Here's an example of logging in via the UIAS:

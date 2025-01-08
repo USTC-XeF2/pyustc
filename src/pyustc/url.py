@@ -1,6 +1,7 @@
 from urllib.parse import urljoin
 
 _root_url = {
+    "portal": "https://portal.ustc.edu.cn",
     "passport": "https://passport.ustc.edu.cn",
     "edu_system": "https://jw.ustc.edu.cn",
     "blackboard": "https://www.bb.ustc.edu.cn",
