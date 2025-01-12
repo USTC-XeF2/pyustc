@@ -49,7 +49,10 @@ class AddDropResponse:
     def __init__(self, type: str, data: dict[str]):
         self.type = type
         self.success: bool = data["success"]
-        self.error: str = data.get("errorMessage", {}).get("text")
+        try:
+            self.error: str = data["errorMessage"]["text"]
+        except:
+            self.error = None
 
     def __repr__(self):
         return f"<Response {self.type} {self.success}{(' ' + self.error) if self.error else ''}>"
@@ -147,10 +150,14 @@ class CourseSelectionSystem:
             "requestId": self._get(f"{type}-request", data).text
         }).json())
 
-    def add(self, lesson: Lesson):
+    def add(self, lesson: Lesson | str):
+        if isinstance(lesson, str):
+            lesson = self.get_lesson(lesson)
         return self._add_drop_request("add", lesson)
 
-    def drop(self, lesson: Lesson):
+    def drop(self, lesson: Lesson | str):
+        if isinstance(lesson, str):
+            lesson = self.get_lesson(lesson)
         return self._add_drop_request("drop", lesson)
 
     def save(self, path: str):

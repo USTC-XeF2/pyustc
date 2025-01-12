@@ -1,4 +1,4 @@
-import re
+import os
 import json
 import requests
 import urllib.parse
@@ -31,12 +31,19 @@ class Passport:
             **kwargs
         )
 
-    def login(self, username: str, password: str, auto_logout: bool = False):
+    def login(self, username: str = None, password: str = None, auto_logout: bool = False):
         """
         Login to the system with the given `username` and `password`.
 
+        If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
+
         If `auto_logout` is True, the previous login will be logged out automatically, otherwise an error will be raised.
         """
+        if not username:
+            
+            username = os.getenv("USTC_PASSPORT_USR")
+        if not password:
+            password = os.getenv("USTC_PASSPORT_PWD")
         if self.is_login:
             if auto_logout:
                 self.logout()
