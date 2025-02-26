@@ -29,7 +29,7 @@ Here's an example of logging in via the UIAS:
 from pyustc import Passport
 
 passport = Passport()
-passport.login('username', 'password')
+passport.login_by_pwd('username', 'password')
 ```
 
 Access your course table via the EduSystem module:

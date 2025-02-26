@@ -34,15 +34,12 @@ class User:
     @classmethod
     def find(
         cls,
-        name: str = None,
-        id: str = None,
-        phone: str = None,
+        name_or_id: str,
         max: int = -1,
         size: int = 50
     ):
-        url = "sys/user/list"
-        params = {}
-        if name: params["realname"] = name
-        if id: params["username"] = id
-        if phone: params["phone"] = phone
+        url = "sys/user/getPersonInChargeUser"
+        params = {
+            "realname": name_or_id
+        }
         yield from map(User, get_service().page_search(url, params, max, size))

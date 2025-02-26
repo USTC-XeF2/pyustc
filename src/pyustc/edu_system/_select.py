@@ -127,11 +127,10 @@ class CourseSelectionSystem:
             results.append(lesson)   
         return results
 
-    def get_lesson(self, code: str) -> Lesson:
+    def get_lesson(self, code: str) -> Lesson | None:
         for i in self.addable_lessons:
             if i.code == code:
                 return i
-        raise ValueError("Lesson not found")
 
     def get_student_counts(self, lessons: list[Lesson]) -> list[tuple[Lesson, int]]:
         res: dict[str, int] = self._get("std-count", {
@@ -159,16 +158,3 @@ class CourseSelectionSystem:
         if isinstance(lesson, str):
             lesson = self.get_lesson(lesson)
         return self._add_drop_request("drop", lesson)
-
-    def save(self, path: str):
-        with open(path, "w") as f:
-            json.dump(self._data, f)
-
-    @classmethod
-    def load(cls, path: str, es):
-        with open(path) as f:
-            data = json.load(f)
-        obj = cls(data["turn_id"], data["student_id"], es._request)
-        if "addable_lessons" in data:
-            obj.refresh_addable_lessons(data["addable_lessons"])
-        return obj

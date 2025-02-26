@@ -15,36 +15,37 @@ headers = {
 SEMESTER = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
 
 class EduSystem:
+    _semesters = dict[SEMESTER, int]()
     def __init__(self, passport: Passport):
         self.session = requests.Session()
         self.session.headers.update(headers)
         ticket = passport.get_ticket(generate_url("edu_system", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params = {"ticket": ticket})
-        if res.status_code != 302:
-            raise RuntimeError("Failed to login")
-        # Get student id
+        if not res.url.endswith("home"):
+            raise RuntimeError("Failed to login, maybe the passport doesn't have the permission")
+        # Get student id and semesters
         res = self._request("for-std/course-table")
-        if res.status_code != 302:
+        self._student_id = res.url.split("/")[-1]
+        if not self._student_id.isdigit():
             raise RuntimeError("Failed to get student id")
-        self._student_id = res.headers["Location"].split("/")[-1]
-        # Get semesters
-        self._semesters = dict[SEMESTER, int]()
-        sem_res = self._request(f"for-std/course-table/info/{self._student_id}")
-        soup = BeautifulSoup(sem_res.text, "html.parser")
+        if not self._semesters:
+            self._set_semesters(res.text)
+
+    @classmethod
+    def _set_semesters(cls, html: str):
+        soup = BeautifulSoup(html, "html.parser")
         for option in soup.select("#allSemesters > option"):
             value = int(option["value"])
-            text = option.text
-            year, season = text.split("年")
-            self._semesters[(int(year), season[0])] = value
+            year, season = option.text.split("年")
+            cls._semesters[(int(year), season[0])] = value
             if "selected" in option.attrs:
-                self._semesters["now"] = value
+                cls._semesters["now"] = value
 
-    def _request(self, url: str, method: str = "get", **args):
+    def _request(self, url: str, method: str = "get", **kwargs):
         return self.session.request(
             method,
             generate_url("edu_system", url),
-            **args,
-            allow_redirects = False
+            **kwargs
         )
 
     def get_current_teach_week(self) -> int:
@@ -70,7 +71,8 @@ class EduSystem:
             "bizTypeId": 2,
             "studentId": self._student_id
         }
-        res = self._request("ws/for-std/course-select/open-turns", method="post", data=data)
+        self._request("for-std/course-select", allow_redirects=False)
+        res = self._request("ws/for-std/course-select/open-turns", "post", data=data)
         return {i["id"]: i["name"] for i in res.json()}
 
     def get_course_selection_system(self, turn_id: int):
