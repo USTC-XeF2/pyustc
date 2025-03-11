@@ -38,13 +38,33 @@ class Passport:
         self._session.cookies.set("SOURCEID_TGC", token, domain = domain)
         self._request("gate/login")
 
+    def login_by_browser(
+            self,
+            username: str = None,
+            password: str = None,
+            driver_type: str = "chrome",
+            headless: bool = False,
+            timeout: int = 20
+        ):
+        """
+        Login to the system with the given `username` and `password` using a browser.
+
+        If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
+        """
+        if not username:
+            username = os.getenv("USTC_PASSPORT_USR")
+        if not password:
+            password = os.getenv("USTC_PASSPORT_PWD")
+
+        from ._browser_login import login
+        token = login(username, password, driver_type, headless, timeout)
+        self.login_by_token(token)
+
     def login_by_pwd(self, username: str = None, password: str = None):
         """
         Login to the system with the given `username` and `password`.
 
         If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
-
-        If you have already logged in, the previous session will be cleared but it will not be logged out.
         """
         if not username:
             username = os.getenv("USTC_PASSPORT_USR")

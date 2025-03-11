@@ -47,8 +47,8 @@ class Course:
 
 class CourseTable:
     def __init__(self, data: dict[str], week: int):
-        self.name: str = data["name"]
-        self.code: str = data["code"]
+        self.std_name: str = data["name"]
+        self.std_id: str = data["code"]
         self.grade: str = data["grade"]
         self.major: str = data["major"]
         self.admin_class: str = data["adminclass"]

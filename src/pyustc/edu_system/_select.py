@@ -1,4 +1,3 @@
-import json
 import requests
 
 class Course:
@@ -61,8 +60,7 @@ class CourseSelectionSystem:
     def __init__(self, turn_id: int, student_id: int, request_func):
         self._data = {
             "turn_id": turn_id,
-            "student_id": student_id,
-            "semester_id": 381
+            "student_id": student_id
         }
         self._request_func = request_func
         self._addable_lessons = None

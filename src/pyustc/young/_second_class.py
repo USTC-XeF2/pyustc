@@ -215,17 +215,33 @@ class SecondClass:
                 raise e
         self.data.update(data)
 
-    def apply(self, force: bool = False) -> bool:
+    def get_applicants(self, max: int = -1, size: int = 50):
+        url = "item/scItemRegistration/list"
+        params = {
+            "itemId": self.id
+        }
+        for i in get_service().page_search(url, params, max, size):
+            yield str(i["username"])
+
+    def apply(self, force: bool = False, auto_cancel: bool = False) -> bool:
         """
         Apply for this second class.
 
         If `force` is True, apply even if it's not applyable.
+
+        If `auto_cancel` is True, cancel the application of the conflicting second classes and apply again.
         """
         if not (force or self.applyable):
             return False
         url = f"item/scItemRegistration/enter/{self.id}"
         data = get_service().request(url, "post")
         if data["success"]: return True
+        if auto_cancel and "时间冲突" in data["message"]:
+            for i in SecondClass.get_participated(
+                filter = SCFilter(time_period = self.hold_time)
+            ):
+                i.cancel_apply()
+            return self.apply(force)
         raise RuntimeError(data["message"])
 
     def cancel_apply(self) -> bool:
@@ -236,23 +252,6 @@ class SecondClass:
         data = get_service().request(url, "post")
         if data["success"]: return True
         raise RuntimeError(data["message"])
-
-    def auto_cancel_and_apply(self, force: bool = False) -> bool:
-        """
-        Cancel the application if applied, otherwise apply for it.
-
-        If `force` is True, apply even if it's not applyable.
-        """
-        try:
-            return self.apply(force)
-        except RuntimeError as e:
-            if "时间冲突" not in e.args[0]:
-                raise e
-            for i in self.get_participated_second_class(
-                filter = SCFilter(time_period = self.hold_time)
-            ):
-                i.cancel_apply()
-        return self.apply(force)
 
     def __repr__(self):
         if self.is_series:

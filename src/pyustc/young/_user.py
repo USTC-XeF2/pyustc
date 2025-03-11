@@ -43,3 +43,10 @@ class User:
             "realname": name_or_id
         }
         yield from map(User, get_service().page_search(url, params, max, size))
+
+    @classmethod
+    def get(cls, id: str):
+        stds = list(cls.find(id, 2, 2))
+        if len(stds) != 1:
+            raise RuntimeError("Failed to get the user")
+        return stds[0]

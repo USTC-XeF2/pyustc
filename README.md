@@ -9,7 +9,7 @@ A Python package that allows for quick use of USTC network services.
 
 ## Features
 
-- **Unified Identity Authentication System**: Simplifies login and session management.
+- **Central Authentication Service**: Simplifies login and session management.
 - **Educational System**: Access course table, grades, and course planning tools.
 - **Young Platform**: Manage Second Classes.
 
@@ -23,7 +23,7 @@ pip install pyustc
 
 ## Quick Start
 
-Here's an example of logging in via the UIAS:
+Here's an example of logging in via the USTC CAS:
 
 ```python
 from pyustc import Passport
