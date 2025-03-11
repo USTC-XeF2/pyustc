@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyustc"
-version = "0.2.1"
+version = "0.2.2"
 authors = [
   { name="XeF2", email="xef2@mail.ustc.edu.cn" },
 ]
@@ -12,6 +12,7 @@ description = "A Python package that allows for quick use of USTC network servic
 readme = "README.md"
 dependencies = [
   "requests",
+  "fake-useragent",
   "beautifulsoup4",
 ]
 requires-python = ">=3.8"
@@ -21,6 +22,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+browser = [
+  "selenium",
 ]
 
 [project.urls]

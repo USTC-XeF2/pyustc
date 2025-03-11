@@ -1,16 +1,16 @@
 import requests
 from typing import Literal
 from bs4 import BeautifulSoup
+from fake_useragent import UserAgent
 
 from ..url import generate_url
 from ..passport import Passport
 from ._course import CourseTable
+from ._grade import GradeManager
 from ._select import CourseSelectionSystem
 from ._adjust import CourseAdjustmentSystem
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3"
-}
+_ua = UserAgent(platforms="desktop")
 
 SEMESTER = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
 
@@ -18,7 +18,7 @@ class EduSystem:
     _semesters = dict[SEMESTER, int]()
     def __init__(self, passport: Passport):
         self.session = requests.Session()
-        self.session.headers.update(headers)
+        self.session.headers["User-Agent"] = _ua.random
         ticket = passport.get_ticket(generate_url("edu_system", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params = {"ticket": ticket})
         if not res.url.endswith("home"):
@@ -65,6 +65,9 @@ class EduSystem:
         }
         res = self._request(url, params = params)
         return CourseTable(res.json()["studentTableVm"], week)
+
+    def get_grade_manager(self):
+        return GradeManager(self._request)
 
     def get_open_turns(self) -> dict[int, str]:
         data = {
