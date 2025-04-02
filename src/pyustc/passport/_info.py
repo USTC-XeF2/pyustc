@@ -1,6 +1,6 @@
 class UserInfo:
     """
-    The user's information in passport.
+    The user's information in the CAS system.
     """
     def __init__(self, id: str, data: dict[str, str], get_nomask):
         self.id = id

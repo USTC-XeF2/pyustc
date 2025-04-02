@@ -23,7 +23,7 @@ pip install pyustc
 
 ## Quick Start
 
-Here's an example of logging in via the USTC CAS:
+Here's an example of logging in via the CAS for USTC:
 
 ```python
 from pyustc import Passport
@@ -32,18 +32,7 @@ passport = Passport()
 passport.login_by_pwd('username', 'password')
 ```
 
-Access your course table via the EduSystem module:
-
-```python
-from pyustc import EduSystem
-
-es = EduSystem(passport)
-table = es.get_course_table()
-for course in table.courses:
-    print(course)
-```
-
-For more examples and detailed documentation, see [here](https://github.com/USTC-XeF2/pyustc/wiki).
+For more examples and detailed documentation, see [here](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
 
 ## Contributing
 

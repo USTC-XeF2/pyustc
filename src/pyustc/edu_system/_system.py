@@ -22,8 +22,9 @@ class EduSystem:
         ticket = passport.get_ticket(generate_url("edu_system", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params = {"ticket": ticket})
         if not res.url.endswith("home"):
-            raise RuntimeError("Failed to login, maybe the passport doesn't have the permission")
-        # Get student id and semesters
+            msg = "Failed to login, maybe the passport doesn't have the permission and you need to login by browser"
+            raise RuntimeError(msg)
+
         res = self._request("for-std/course-table")
         self._student_id = res.url.split("/")[-1]
         if not self._student_id.isdigit():
@@ -70,6 +71,9 @@ class EduSystem:
         return GradeManager(self._request)
 
     def get_open_turns(self) -> dict[int, str]:
+        """
+        Get the open turns for course selection.
+        """
         data = {
             "bizTypeId": 2,
             "studentId": self._student_id

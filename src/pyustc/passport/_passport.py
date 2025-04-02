@@ -8,19 +8,19 @@ from ._info import UserInfo
 
 class Passport:
     """
-    The Unified Identity Authentication System of USTC.
+    The Central Authentication Service (CAS) client for USTC.
     """
     def __init__(self):
-        """
-        Initialize a Passport object.
-        """
         self._session = requests.Session()
 
     @classmethod
-    def load_token(self, path: str):
+    def load_token(cls, path: str):
+        """
+        The token will not be verified, please use `is_login` to check the login status.
+        """
         with open(path) as rf:
             token = json.load(rf)
-        passport = Passport()
+        passport = cls()
         passport.login_by_token(token["tgc"], domain = token["domain"])
         return passport
 
@@ -30,9 +30,6 @@ class Passport:
     def login_by_token(self, token: str, domain: str = ""):
         """
         Login to the system with the given token.
-        
-        The token will not be verified, please use `is_login` to check the login status.
-        
         """
         self._session.cookies.clear()
         self._session.cookies.set("SOURCEID_TGC", token, domain = domain)
@@ -50,6 +47,8 @@ class Passport:
         Login to the system with the given `username` and `password` using a browser.
 
         If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
+
+        If `headless` is set to `True`, the browser will run in headless mode.
         """
         if not username:
             username = os.getenv("USTC_PASSPORT_USR")
