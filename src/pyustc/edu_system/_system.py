@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
 from ..url import generate_url
-from ..passport import Passport
+from ..cas import CASClient
 from ._course import CourseTable
 from ._grade import GradeManager
 from ._select import CourseSelectionSystem
@@ -16,13 +16,13 @@ SEMESTER = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
 
 class EduSystem:
     _semesters = dict[SEMESTER, int]()
-    def __init__(self, passport: Passport):
+    def __init__(self, client: CASClient):
         self.session = requests.Session()
         self.session.headers["User-Agent"] = _ua.random
-        ticket = passport.get_ticket(generate_url("edu_system", "ucas-sso/login"))
+        ticket = client.get_ticket(generate_url("edu_system", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params = {"ticket": ticket})
         if not res.url.endswith("home"):
-            msg = "Failed to login, maybe the passport doesn't have the permission and you need to login by browser"
+            msg = "Failed to login, maybe the CAS client doesn't have the permission and you need to login by browser"
             raise RuntimeError(msg)
 
         res = self._request("for-std/course-table")

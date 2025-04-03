@@ -1,15 +1,15 @@
-from pyustc import Passport, YouthService
+from pyustc import CASClient, YouthService
 from pyustc.young import SecondClass, SCFilter, Module, Department
 
-passport = Passport()
-passport.login_by_pwd()
+client = CASClient()
+client.login_by_pwd()
 
-with YouthService(passport):
+with YouthService(client):
     # Get the list of second classes by name
     sc = next(SecondClass.find("xxx"))
 
     # Or get the list of second classes by filter
-    root_dept = Department.get_available_tags()[0]
+    root_dept = Department.get_root_dept()
     filter = SCFilter(
         name="xxx",
         module=Module.get_available_tags(text="体")[0],
@@ -37,6 +37,7 @@ with YouthService(passport):
         sc.apply_limit,
         sc.applied,
         sc.applyable,
+        sc.need_sign_info,
         sc.module,
         sc.department,
         sc.labels,

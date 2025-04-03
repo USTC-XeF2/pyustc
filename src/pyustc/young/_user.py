@@ -9,6 +9,7 @@ class User:
         self.avatar = change_data(data["avatar"])
         self.grade: str = data["grade"]
         self.college = change_data(data["college"])
+        self.classes: str = data["classes"]
         self.scientificValue: int = data["scientificqiValue"]
         self.birthday: str = data["birthday"]
 
@@ -45,8 +46,16 @@ class User:
         yield from map(User, get_service().page_search(url, params, max, size))
 
     @classmethod
-    def get(cls, id: str):
+    def get(cls, id: str = None):
+        phone = None
+        if not id:
+            info = get_service().get_result("paramdesign/scMyInfo/info")
+            id = info["username"]
+            phone = info["phone"]
         stds = list(cls.find(id, 2, 2))
         if len(stds) != 1:
             raise RuntimeError("Failed to get the user")
-        return stds[0]
+        user = stds[0]
+        if phone:
+            user._phone = phone
+        return user

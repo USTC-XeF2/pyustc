@@ -6,7 +6,7 @@ import urllib.parse
 from ..url import generate_url
 from ._info import UserInfo
 
-class Passport:
+class CASClient:
     """
     The Central Authentication Service (CAS) client for USTC.
     """
@@ -16,13 +16,13 @@ class Passport:
     @classmethod
     def load_token(cls, path: str):
         """
-        The token will not be verified, please use `is_login` to check the login status.
+        The token will not be verified, please use `client.is_login` to check the login status.
         """
         with open(path) as rf:
             token = json.load(rf)
-        passport = cls()
-        passport.login_by_token(token["tgc"], domain = token["domain"])
-        return passport
+        client = cls()
+        client.login_by_token(token["tgc"], domain = token["domain"])
+        return client
 
     def _request(self, url: str, site: str = "id", method: str = "get", **kwargs):
         return self._session.request(method, generate_url(site, url), **kwargs)
@@ -35,6 +35,37 @@ class Passport:
         self._session.cookies.set("SOURCEID_TGC", token, domain = domain)
         self._request("gate/login")
 
+    def _get_usr_and_pwd(self, usr: str | None, pwd: str | None):
+        if not usr:
+            usr = os.getenv("USTC_CAS_USR")
+        if not pwd:
+            pwd = os.getenv("USTC_CAS_PWD")
+        if not (usr and pwd):
+            raise ValueError("Username and password are required")
+        return usr, pwd
+
+    def login_by_pwd(self, username: str = None, password: str = None):
+        """
+        Login to the system using username and password directly.
+
+        Arguments:
+            username: The username to login. If not set, will use the environment variable `USTC_CAS_USR`.
+            password: The password to login. If not set, will use the environment variable `USTC_CAS_PWD`.
+        """
+        usr, pwd = self._get_usr_and_pwd(username, password)
+        self._session.cookies.clear()
+
+        login_res = self._request("demo/common/tmpLogin", "portal", "post", data = {
+            "ue": usr,
+            "pd": pwd
+        }).json()
+        if not login_res["d"]:
+            raise ValueError(login_res["m"])
+        self._request("cas/clientredirect", params = {
+            "client_name": "ssoOauth",
+            "service": generate_url("id", "cas/oauth2.0/callbackAuthorize")
+        })
+
     def login_by_browser(
             self,
             username: str = None,
@@ -44,43 +75,20 @@ class Passport:
             timeout: int = 20
         ):
         """
-        Login to the system with the given `username` and `password` using a browser.
+        Login to the system using a browser.
 
-        If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
-
-        If `headless` is set to `True`, the browser will run in headless mode.
+        Arguments:
+            username: The username to login. If not set, will use the environment variable `USTC_CAS_USR`.
+            password: The password to login. If not set, will use the environment variable `USTC_CAS_PWD`.
+            driver_type: The type of the browser driver to use.
+            headless: Whether to run the browser in headless mode.
+            timeout: The timeout for the browser login.
         """
-        if not username:
-            username = os.getenv("USTC_PASSPORT_USR")
-        if not password:
-            password = os.getenv("USTC_PASSPORT_PWD")
+        usr, pwd = self._get_usr_and_pwd(username, password)
 
         from ._browser_login import login
-        token = login(username, password, driver_type, headless, timeout)
+        token = login(usr, pwd, driver_type, headless, timeout)
         self.login_by_token(token)
-
-    def login_by_pwd(self, username: str = None, password: str = None):
-        """
-        Login to the system with the given `username` and `password`.
-
-        If `username` or `password` is not set, the environment variable `USTC_PASSPORT_USR` or `USTC_PASSPORT_PWD` will be used.
-        """
-        if not username:
-            username = os.getenv("USTC_PASSPORT_USR")
-        if not password:
-            password = os.getenv("USTC_PASSPORT_PWD")
-        self._session.cookies.clear()
-
-        login_res = self._request("demo/common/tmpLogin", "portal", "post", data = {
-            "ue": username,
-            "pd": password
-        }).json()
-        if not login_res["d"]:
-            raise ValueError(login_res["m"])
-        self._request("cas/clientredirect", params = {
-            "client_name": "ssoOauth",
-            "service": generate_url("id", "cas/oauth2.0/callbackAuthorize")
-        })
 
     def save_token(self, path: str):
         """

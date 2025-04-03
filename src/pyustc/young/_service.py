@@ -1,15 +1,15 @@
 import requests
 
 from ..url import generate_url
-from ..passport import Passport
+from ..cas import CASClient
 
 class YouthService:
-    def __init__(self, passport: Passport, retry: int = 3):
+    def __init__(self, client: CASClient, retry: int = 3):
         self.retry = retry
         self._session = requests.Session()
         service_url = generate_url("young", "login/sc-wisdom-group-learning/")
         data = self.request("cas/client/checkSsoLogin", "get", {
-            "ticket": passport.get_ticket(service_url),
+            "ticket": client.get_ticket(service_url),
             "service": service_url
         })
         if not data["success"]:
@@ -29,12 +29,12 @@ class YouthService:
             global service
             service = self._origin_service
 
-    def request(self, url: str, method: str, params: dict[str] = {}) -> dict[str]:
+    def request(self, url: str, method: str, params: dict[str] = {}, json: dict[str] = {}) -> dict[str]:
         return self._session.request(
             method,
             generate_url("young", f"login/wisdom-group-learning-bg/{url}"),
             params = params,
-            json = {}
+            json = json
         ).json()
 
     def get_result(self, url: str, params: dict[str] = {}):
@@ -69,5 +69,5 @@ def get_service() -> YouthService:
     try:
         return service
     except NameError:
-        e = RuntimeError("Not in context, please use 'with YouthService(passport)' to create a context")
+        e = RuntimeError("Not in context, please use 'with YouthService(CASClient)' to create a context")
         raise e

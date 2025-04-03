@@ -1,6 +1,6 @@
 import time
 
-from pyustc import Passport, EduSystem
+from pyustc import CASClient, EduSystem
 from pyustc.edu_system._select import CourseSelectionSystem, Lesson
 
 def select_courses(
@@ -70,9 +70,9 @@ def select_courses(
 lesson_pairs = {}
 
 def main():
-    passport = Passport()
-    passport.login_by_browser(headless=True)
-    es = EduSystem(passport)
+    client = CASClient()
+    client.login_by_browser(headless=True)
+    es = EduSystem(client)
 
     turn = es.get_open_turns().popitem()
     print(f"Begin course selection for turn {turn[1]}")

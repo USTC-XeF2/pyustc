@@ -4,7 +4,7 @@ from typing import Generator, TypeVar
 try:
     from typing import Self
 except:
-    Self = TypeVar("Self", bound = "TimePeriod")
+    from typing_extensions import Self
 
 from ._service import get_service
 
@@ -76,11 +76,7 @@ class Module(Tag):
         return f"<Module {repr(self.text)}>"
 
 class Department(Tag):
-    """
-    The department of a second class.
-    
-    Use `find` to search for the children of a department.
-    """
+    _root_dept = None
     def __init__(self, id: str, name: str, children: list[dict[str]] = None, level: int = 0):
         self.id = id
         self.name = name
@@ -95,7 +91,20 @@ class Department(Tag):
     def from_dict(cls, data: dict[str], level: int = 0):
         return cls(data["id"], data["departName"], data.get("children"), level)
 
+    @classmethod
+    def get_root_dept(cls):
+        if cls._root_dept is None:
+            cls._root_dept = cls.get_available_tags()[0]
+        return cls._root_dept
+
     def find(self, name: str, max_level: int = -1) -> Generator[Self, None, None]:
+        """
+        Find children departments with the given name.
+
+        Arguments:
+            name: The name of the department.
+            max_level: The maximum level of the department. `-1` means no limit.
+        """
         if max_level != -1 and self.level > max_level:
             return
         if name in self.name:
@@ -140,7 +149,9 @@ class SCFilter:
             strict_time: bool = False
         ):
         """
-        The arg `fuzzy_name` is used to determine whether the name should be fuzzy matched.
+        Arguments:
+            fuzzy_name: Whether to use fuzzy matching for the name.
+            strict_time: Whether to check if the hold time of the second class is strictly within the time period.
         """
         self.name = name or ""
         self.time_period = time_period
@@ -166,8 +177,6 @@ class SCFilter:
     def check(self, sc, only_strict: bool = False) -> bool:
         """
         Check if the second lesson meets the requirements.
-
-        If `only_strict` is True, only the requirements that cannot be provided by the second course platform will be checked.
         """
         if not only_strict:
             if self.fuzzy_name and self.name.lower() not in sc.name.lower():

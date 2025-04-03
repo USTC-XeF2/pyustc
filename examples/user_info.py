@@ -1,10 +1,10 @@
-from pyustc import Passport
+from pyustc import CASClient
 
-passport = Passport()
-passport.login_by_pwd()
+client = CASClient()
+client.login_by_pwd()
 
 # Get the user info
-user = passport.get_info()
+user = client.get_info()
 print(user)
 print(
     user.id,

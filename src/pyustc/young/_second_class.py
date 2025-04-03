@@ -1,33 +1,57 @@
 try:
     from typing import Self
 except:
-    from typing import TypeVar
-    Self = TypeVar("Self", bound = "SecondClass")
+    from typing_extensions import Self
 
 from ._service import get_service
+from ._user import User 
 from ._filter import TimePeriod, Module, Department, Label, SCFilter
 
-status_list = {
-    26: "报名中",
-    28: "报名已结束",
-    30: "学时公示中",
-    31: "追加学时公示",
-    32: "公示已结束",
-    33: "学时申请中",
-    34: "学时审核通过",
-    35: "学时驳回",
-    40: "结项"
-}
-
 class Status:
+    status_list = {
+        26: "报名中",
+        28: "报名已结束",
+        30: "学时公示中",
+        31: "追加学时公示",
+        32: "公示已结束",
+        33: "学时申请中",
+        34: "学时审核通过",
+        35: "学时驳回",
+        40: "结项"
+    }
     def __init__(self, code: int):
         self.code = code
-        self.text = status_list.get(code)
+
+    @property
+    def text(self):
+        return self.status_list.get(self.code)
+
+    def __repr__(self):
+        return f"<Status {self.code} {repr(self.text)}>"
+
+class SignInfo:
+    def __init__(self, college: str, classes: str, phone: str, email: str = "", remarks: str = ""):
+        self.college = college
+        self.classes = classes
+        self.phone = phone
+        self.email = email
+        self.remarks = remarks
+
+    @classmethod
+    def get_self(cls):
+        user = User.get()
+        return cls(user.college, user.classes, user.phone)
+
+    def json(self):
+        return {
+            "college": self.college,
+            "classes": self.classes,
+            "phone": self.phone,
+            "email": self.email,
+            "remarks": self.remarks
+        }
 
 class SecondClass:
-    """
-    The second class of the Youth Service.
-    """
     _second_class_cache = dict[str, Self]()
     def __new__(cls, id: str, *args, **kwargs):
         if id in cls._second_class_cache:
@@ -72,10 +96,11 @@ class SecondClass:
         """
         Find the second class that meets the conditions.
 
-        The arg `name` is valid when `filter` is `None` or `filter.name` is unset.
-
-        If `expand_series` is True, the function will return all the children of the series.
-        And the `filter` will be applied to both the series and the children.
+        Arguments:
+            name: The name of the second class. If `filter.name` is set, this argument will be ignored.
+            filter: The filter for the second class, which will be used for both the series and the children.
+            apply_ended: Whether to show the second class that has ended or not.
+            expand_series: Whether to expand the series to get all second classes in the series.
         """
         if not max: return
         url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
@@ -162,6 +187,10 @@ class SecondClass:
         return self.status.code == 26 and not self.applied and self.apply_num < (self.apply_limit or 0)
 
     @property
+    def need_sign_info(self) -> bool:
+        return self.data["needSignInfo"] == "1"
+
+    @property
     def module(self):
         if "moduleName" not in self.data:
             self.update()
@@ -223,18 +252,22 @@ class SecondClass:
         for i in get_service().page_search(url, params, max, size):
             yield str(i["username"])
 
-    def apply(self, force: bool = False, auto_cancel: bool = False) -> bool:
+    def apply(self, force: bool = False, auto_cancel: bool = False, sign_info: SignInfo = None) -> bool:
         """
         Apply for this second class.
 
-        If `force` is True, apply even if it's not applyable.
-
-        If `auto_cancel` is True, cancel the application of the conflicting second classes and apply again.
+        Arguments:
+            force: Whether to force apply even if the second class is not applyable.
+            auto_cancel: Whether to cancel the application with time conflict and apply again.
+            sign_info: The sign info for the second class. If `need_sign_info` is False, this argument will be ignored.
         """
         if not (force or self.applyable):
             return False
-        url = f"item/scItemRegistration/enter/{self.id}"
-        data = get_service().request(url, "post")
+        url = f"mobile/item/enter/{self.id}"
+        data = get_service().request(
+            url, "post",
+            json=(sign_info or SignInfo.get_self()).json() if self.need_sign_info else {}
+        )
         if data["success"]: return True
         if auto_cancel and "时间冲突" in data["message"]:
             for i in SecondClass.get_participated(
@@ -248,7 +281,7 @@ class SecondClass:
         """
         Cancel the application.
         """
-        url = f"item/scItemRegistration/cancellRegistration/{self.id}"
+        url = f"mobile/item/cancellRegistration/{self.id}"
         data = get_service().request(url, "post")
         if data["success"]: return True
         raise RuntimeError(data["message"])

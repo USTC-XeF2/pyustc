@@ -1,13 +1,13 @@
-from pyustc import Passport, EduSystem
+from pyustc import CASClient, EduSystem
 
-passport = Passport()
+client = CASClient()
 
-# Passport logged in with password doesn't have permission
+# CAS client logged in by password directly doesn't have permission
 # Use `login_by_browser` or `login_by_token` instead
-passport.login_by_browser()
-# passport.login_by_token(...)
+client.login_by_browser()
+# client.login_by_token(...)
 
-es = EduSystem(passport)
+es = EduSystem(client)
 
 # TODO: Save token to a file
 # es.save_token("es_token.json")

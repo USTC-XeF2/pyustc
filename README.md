@@ -26,10 +26,10 @@ pip install pyustc
 Here's an example of logging in via the CAS for USTC:
 
 ```python
-from pyustc import Passport
+from pyustc import CASClient
 
-passport = Passport()
-passport.login_by_pwd('username', 'password')
+client = CASClient()
+client.login_by_pwd('username', 'password')
 ```
 
 For more examples and detailed documentation, see [here](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
