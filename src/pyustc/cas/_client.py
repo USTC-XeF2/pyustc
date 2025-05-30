@@ -1,7 +1,11 @@
 import os
+import re
 import json
+import base64
 import requests
 import urllib.parse
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 
 from ..url import generate_url
 from ._info import UserInfo
@@ -55,16 +59,34 @@ class CASClient:
         usr, pwd = self._get_usr_and_pwd(username, password)
         self._session.cookies.clear()
 
-        login_res = self._request("demo/common/tmpLogin", "portal", "post", data = {
-            "ue": usr,
-            "pd": pwd
-        }).json()
-        if not login_res["d"]:
-            raise ValueError(login_res["m"])
-        self._request("cas/clientredirect", params = {
-            "client_name": "ssoOauth",
-            "service": generate_url("id", "cas/oauth2.0/callbackAuthorize")
-        })
+        page = self._request("cas/login").text
+        crypto = re.search(r'<p id="login-croypto">(.+)</p>', page).group(1)
+        flow_key = re.search(r'<p id="login-page-flowkey">(.+)</p>', page).group(1)
+
+        cipher = AES.new(base64.b64decode(crypto), AES.MODE_ECB)
+        aes_encrypt = lambda data: base64.b64encode(
+            cipher.encrypt(pad(data.encode(), AES.block_size))
+        ).decode()
+
+        data = {
+            "type": "UsernamePassword",
+            "_eventId": "submit",
+            "croypto": crypto,
+            "username": usr,
+            "password": aes_encrypt(pwd),
+            "captcha_payload": aes_encrypt("{}"),
+            "execution": flow_key,
+        }
+        res = self._request(
+            "cas/login",
+            method = "post",
+            data = data,
+            allow_redirects = False
+        )
+        if res.status_code != 302:
+            pattern = r'<div\s+class="alert alert-danger"\s+id="login-error-msg">\s*<span>([^<]+)</span>\s*</div>'
+            match = re.search(pattern, res.text)
+            raise RuntimeError(match.group(1) if match else "Login failed")
 
     def login_by_browser(
             self,

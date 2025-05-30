@@ -10,7 +10,7 @@ client.login_by_pwd()
 # Login with token that you got from the cookies 'SOURCEID_TGC' in the browser
 client.login_by_token('token')
 
-# Login with browser(needs to install `pyustc[browser]` and configure the browser driver)
+# Login through browser(needs to install `pyustc[browser]` and configure the browser driver)
 client.login_by_browser(driver_type="chrome", headless=False, timeout=20)
 
 # Save the token to a file and load it later

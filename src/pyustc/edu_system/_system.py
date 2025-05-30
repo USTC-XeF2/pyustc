@@ -22,8 +22,7 @@ class EduSystem:
         ticket = client.get_ticket(generate_url("edu_system", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params = {"ticket": ticket})
         if not res.url.endswith("home"):
-            msg = "Failed to login, maybe the CAS client doesn't have the permission and you need to login by browser"
-            raise RuntimeError(msg)
+            raise RuntimeError("Failed to login")
 
         res = self._request("for-std/course-table")
         self._student_id = res.url.split("/")[-1]
