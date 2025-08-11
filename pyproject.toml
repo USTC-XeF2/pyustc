@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyustc"
-version = "0.3.1"
+version = "0.3.2"
 authors = [
   { name="XeF2", email="xef2@mail.ustc.edu.cn" },
 ]
@@ -21,10 +21,11 @@ requires-python = ">=3.8"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
 
 [project.optional-dependencies]
 browser = [

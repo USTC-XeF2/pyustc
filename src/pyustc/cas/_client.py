@@ -18,26 +18,36 @@ class CASClient:
         self._session = requests.Session()
 
     @classmethod
-    def load_token(cls, path: str):
+    def load_token(cls, path: str, check: bool = True):
         """
-        The token will not be verified, please use `client.is_login` to check the login status.
+        Load the token from the file and create a CASClient instance.
+
+        Arguments:
+            path: The path to the token file.
+            check: Whether to check the login status after loading the token, raise an error if not logged in.
         """
         with open(path) as rf:
             token = json.load(rf)
         client = cls()
-        client.login_by_token(token["tgc"], domain = token["domain"])
+        client.login_by_token(token["tgc"], domain=token["domain"], check=check)
         return client
 
-    def _request(self, url: str, site: str = "id", method: str = "get", **kwargs):
-        return self._session.request(method, generate_url(site, url), **kwargs)
+    def _request(self, url: str, method: str = "get", **kwargs):
+        return self._session.request(method, generate_url("id", url), **kwargs)
 
-    def login_by_token(self, token: str, domain: str = ""):
+    def login_by_token(self, token: str, domain: str = "", check: bool = True):
         """
         Login to the system with the given token.
+
+        Arguments:
+            token: The token to login.
+            domain: The domain of the token, if not set, will use the default domain.
+            check: Whether to check the login status after setting the token, raise an error if not logged in.
         """
         self._session.cookies.clear()
-        self._session.cookies.set("SOURCEID_TGC", token, domain = domain)
-        self._request("gate/login")
+        self._session.cookies.set("SOURCEID_TGC", token, domain=domain) # type: ignore
+        if check and not self.is_login:
+            raise RuntimeError("Failed to login with the token")
 
     def _get_usr_and_pwd(self, usr: str | None, pwd: str | None):
         if not usr:
@@ -116,11 +126,10 @@ class CASClient:
         """
         Save the token to the file.
         """
-        for domain in self._session.cookies.list_domains():
-            tgc = self._session.cookies.get("SOURCEID_TGC", domain = domain)
-            if tgc:
+        for cookie in self._session.cookies:
+            if cookie.name == "SOURCEID_TGC":
                 with open(path, "w") as wf:
-                    json.dump({"domain": domain, "tgc": tgc}, wf)
+                    json.dump({"domain": cookie.domain, "tgc": cookie.value}, wf)
                 return
         raise RuntimeError("Failed to get token")
 
@@ -135,8 +144,8 @@ class CASClient:
         """
         Check if the user has logged in.
         """
-        res = self._request("gate/login")
-        return res.url.endswith("index.html")
+        res = self._request("cas/login", allow_redirects=False)
+        return res.status_code == 302
 
     def get_info(self):
         """
@@ -144,7 +153,6 @@ class CASClient:
         """
         user: dict[str, str] = self._request("gate/getUser").json()
         if (objectId := user.get("objectId")):
-            username = user.get("username")
             personId = self._request(f"gate/linkid/api/user/getPersonId/{objectId}").json()["data"]
             info = self._request(
                 f"gate/linkid/api/aggregate/user/userInfo/{personId}",
@@ -158,14 +166,14 @@ class CASClient:
                     "standardKey": key
                 }
             ).json()["data"]
-            return UserInfo(username, info, get_nomask)
+            return UserInfo(user["username"], info, get_nomask)
         raise RuntimeError("Failed to get info")
 
     def get_ticket(self, service: str):
         res = self._request(
             "cas/login",
-            params = {"service": service},
-            allow_redirects = False
+            params={"service": service},
+            allow_redirects=False
         )
         if res.status_code == 302:
             location = res.headers["Location"]
