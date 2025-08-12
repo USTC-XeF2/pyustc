@@ -6,5 +6,6 @@ root_url = {
     "young": "https://young.ustc.edu.cn",
 }
 
+
 def generate_url(website: str, path: str) -> str:
     return urljoin(root_url[website], path)

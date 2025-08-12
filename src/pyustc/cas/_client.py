@@ -1,19 +1,23 @@
+import base64
+import json
 import os
 import re
-import json
-import base64
+from typing import Any
+from urllib.parse import parse_qs, urlparse
+
 import requests
-import urllib.parse
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
 from ..url import generate_url
 from ._info import UserInfo
 
+
 class CASClient:
     """
     The Central Authentication Service (CAS) client for USTC.
     """
+
     def __init__(self):
         self._session = requests.Session()
 
@@ -32,7 +36,7 @@ class CASClient:
         client.login_by_token(token["tgc"], domain=token["domain"], check=check)
         return client
 
-    def _request(self, url: str, method: str = "get", **kwargs):
+    def _request(self, url: str, method: str = "get", **kwargs: Any):
         return self._session.request(method, generate_url("id", url), **kwargs)
 
     def login_by_token(self, token: str, domain: str = "", check: bool = True):
@@ -45,7 +49,7 @@ class CASClient:
             check: Whether to check the login status after setting the token, raise an error if not logged in.
         """
         self._session.cookies.clear()
-        self._session.cookies.set("SOURCEID_TGC", token, domain=domain) # type: ignore
+        self._session.cookies.set("SOURCEID_TGC", token, domain=domain)
         if check and not self.is_login:
             raise RuntimeError("Failed to login with the token")
 
@@ -58,7 +62,7 @@ class CASClient:
             raise ValueError("Username and password are required")
         return usr, pwd
 
-    def login_by_pwd(self, username: str = None, password: str = None):
+    def login_by_pwd(self, username: str | None = None, password: str | None = None):
         """
         Login to the system using username and password directly.
 
@@ -70,15 +74,21 @@ class CASClient:
         self._session.cookies.clear()
 
         page = self._request("cas/login").text
-        crypto = re.search(r'<p id="login-croypto">(.+)</p>', page).group(1)
-        flow_key = re.search(r'<p id="login-page-flowkey">(.+)</p>', page).group(1)
+        crypto = re.search(r'<p id="login-croypto">(.+)</p>', page)
+        flow_key = re.search(r'<p id="login-page-flowkey">(.+)</p>', page)
+        if not (crypto and flow_key):
+            raise RuntimeError("Failed to get login parameters")
 
+        crypto = crypto.group(1)
+        flow_key = flow_key.group(1)
         cipher = AES.new(base64.b64decode(crypto), AES.MODE_ECB)
-        aes_encrypt = lambda data: base64.b64encode(
-            cipher.encrypt(pad(data.encode(), AES.block_size))
-        ).decode()
 
-        data = {
+        def aes_encrypt(data: str):
+            return base64.b64encode(
+                cipher.encrypt(pad(data.encode(), AES.block_size))
+            ).decode()
+
+        data: dict[str, str] = {
             "type": "UsernamePassword",
             "_eventId": "submit",
             "croypto": crypto,
@@ -88,10 +98,7 @@ class CASClient:
             "execution": flow_key,
         }
         res = self._request(
-            "cas/login",
-            method = "post",
-            data = data,
-            allow_redirects = False
+            "cas/login", method="post", data=data, allow_redirects=False
         )
         if res.status_code != 302:
             pattern = r'<div\s+class="alert alert-danger"\s+id="login-error-msg">\s*<span>([^<]+)</span>\s*</div>'
@@ -99,13 +106,13 @@ class CASClient:
             raise RuntimeError(match.group(1) if match else "Login failed")
 
     def login_by_browser(
-            self,
-            username: str = None,
-            password: str = None,
-            driver_type: str = "chrome",
-            headless: bool = False,
-            timeout: int = 20
-        ):
+        self,
+        username: str | None = None,
+        password: str | None = None,
+        driver_type: str = "chrome",
+        headless: bool = False,
+        timeout: int = 20,
+    ):
         """
         Login to the system using a browser.
 
@@ -119,6 +126,7 @@ class CASClient:
         usr, pwd = self._get_usr_and_pwd(username, password)
 
         from ._browser_login import login
+
         token = login(usr, pwd, driver_type, headless, timeout)
         self.login_by_token(token)
 
@@ -152,32 +160,31 @@ class CASClient:
         Get the user's information. If the user is not logged in, an error will be raised.
         """
         user: dict[str, str] = self._request("gate/getUser").json()
-        if (objectId := user.get("objectId")):
-            personId = self._request(f"gate/linkid/api/user/getPersonId/{objectId}").json()["data"]
+        if objectId := user.get("objectId"):
+            personId = self._request(
+                f"gate/linkid/api/user/getPersonId/{objectId}"
+            ).json()["data"]
             info = self._request(
-                f"gate/linkid/api/aggregate/user/userInfo/{personId}",
-                method = "post"
+                f"gate/linkid/api/aggregate/user/userInfo/{personId}", method="post"
             ).json()["data"]
-            get_nomask = lambda key: self._request(
-                "gate/linkid/api/aggregate/user/getNoMaskData",
-                method = "post",
-                json = {
-                    "indentityId": objectId,
-                    "standardKey": key
-                }
-            ).json()["data"]
-            return UserInfo(user["username"], info, get_nomask)
+            return UserInfo(
+                user["username"],
+                info,
+                lambda key: self._request(
+                    "gate/linkid/api/aggregate/user/getNoMaskData",
+                    method="post",
+                    json={"indentityId": objectId, "standardKey": key},
+                ).json()["data"],
+            )
         raise RuntimeError("Failed to get info")
 
     def get_ticket(self, service: str):
         res = self._request(
-            "cas/login",
-            params={"service": service},
-            allow_redirects=False
+            "cas/login", params={"service": service}, allow_redirects=False
         )
         if res.status_code == 302:
             location = res.headers["Location"]
-            query = urllib.parse.parse_qs(urllib.parse.urlparse(location).query)
+            query = parse_qs(urlparse(location).query)
             if "ticket" in query:
                 return query["ticket"][0]
         raise RuntimeError("Failed to get ticket")

@@ -1,13 +1,23 @@
 import time
+from collections.abc import Callable
+from typing import Any
+
 import requests
 
-from ._select import Lesson, AddDropResponse
+from ._select import AddDropResponse, Lesson
+
 
 class CourseAdjustmentSystem:
-    def __init__(self, turn_id: int, semester_id: int, student_id: str, request_func):
+    def __init__(
+        self,
+        turn_id: int,
+        semester_id: int,
+        student_id: int,
+        request_func: Callable[..., requests.Response],
+    ):
         self._turn_id = turn_id
         self._semester_id = semester_id
-        self._student_id = int(student_id)
+        self._student_id = student_id
         self._request_func = request_func
 
     @property
@@ -22,8 +32,10 @@ class CourseAdjustmentSystem:
     def student_id(self):
         return self._student_id
 
-    def _get(self, url: str, **kwargs) -> requests.Response:
-        return self._request_func("for-std/course-adjustment-apply/" + url, method="post", **kwargs)
+    def _get(self, url: str, **kwargs: Any):
+        return self._request_func(
+            "for-std/course-adjustment-apply/" + url, method="post", **kwargs
+        ).json()
 
     def change_class(self, lesson: Lesson, new_lesson: Lesson, reason: str):
         data = {
@@ -32,31 +44,34 @@ class CourseAdjustmentSystem:
             "bizTypeAssoc": 2,
             "applyTypeAssoc": 5,
         }
-        res = self._get("change-class-request", json={
-            **data,
-            "courseSelectTurnAssoc": self.turn_id,
-            "saveCmds": [{
-                "oldLessonAssoc": lesson.id,
-                "newLessonAssoc": new_lesson.id,
-                "applyReason": reason,
+        res = self._get(
+            "change-class-request",
+            json={
                 **data,
-                "scheduleGroupAssoc": None
-            }]
-        }).json()
+                "courseSelectTurnAssoc": self.turn_id,
+                "saveCmds": [
+                    {
+                        "oldLessonAssoc": lesson.id,
+                        "newLessonAssoc": new_lesson.id,
+                        "applyReason": reason,
+                        **data,
+                        "scheduleGroupAssoc": None,
+                    }
+                ],
+            },
+        )
         if res["errors"]["allErrors"]:
-            return AddDropResponse("change-class", {
-                "success": False,
-                "errorMessage" : res["errors"]["allErrors"][0]
-            })
+            return AddDropResponse(
+                "change-class",
+                {"success": False, "errorMessage": res["errors"]["allErrors"][0]},
+            )
         elif res["saveApply"]:
-            return AddDropResponse("change-class", {
-                "success": True
-            })
+            return AddDropResponse("change-class", {"success": True})
         for _ in range(3):
-            r = self._get("add-drop-response", data={
-                "studentId": self.student_id,
-                "requestId": res["requestId"]
-            }).json()
+            r = self._get(
+                "add-drop-response",
+                data={"studentId": self.student_id, "requestId": res["requestId"]},
+            )
             if r:
                 return AddDropResponse("change-class", r)
             time.sleep(1)

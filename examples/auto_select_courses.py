@@ -1,14 +1,15 @@
 import time
 
 from pyustc import CASClient, EduSystem
-from pyustc.edu_system._select import CourseSelectionSystem, Lesson
+from pyustc.edu_system import CourseSelectionSystem, Lesson
+
 
 def select_courses(
-        cs: CourseSelectionSystem,
-        lesson_pairs: dict[str, list[str]],
-        count_refresh_interval: float = 0.3,
-        lesson_refresh_frequency: int = 5
-    ):
+    cs: CourseSelectionSystem,
+    lesson_pairs: dict[str, list[str]],
+    count_refresh_interval: float = 0.3,
+    lesson_refresh_frequency: int = 5,
+):
     """
     Automatically select courses based on the lesson code.
 
@@ -25,7 +26,7 @@ def select_courses(
         The lesson codes of successfully selected courses.
     """
     selected_lessons = cs.selected_lessons
-    lessons = dict[Lesson, list[Lesson]]()
+    lessons: dict[Lesson, list[Lesson]] = {}
     for k, v in lesson_pairs.items():
         new_lesson = cs.get_lesson(k)
         if not new_lesson:
@@ -33,7 +34,7 @@ def select_courses(
         if new_lesson in selected_lessons:
             yield new_lesson.code
         else:
-            lessons[new_lesson] = [cs.get_lesson(i) for i in v if cs.get_lesson(i)]
+            lessons[new_lesson] = [l for i in v if (l := cs.get_lesson(i))]
 
     last_refresh = 0
     while lessons:
@@ -42,9 +43,9 @@ def select_courses(
             last_refresh = lesson_refresh_frequency
         last_refresh -= 1
         for new_lesson, count in cs.get_student_counts(lessons.keys()):
-            if count >= new_lesson.limit:
+            if count is None or count >= new_lesson.limit:
                 continue
-            dropped_old_lessons = list[Lesson]()
+            dropped_old_lessons: list[Lesson] = []
             drop_success = True
             for old_lesson in lessons[new_lesson]:
                 print(f"Drop lesson {old_lesson} for {new_lesson}")
@@ -67,7 +68,6 @@ def select_courses(
                     print("Re-adding lesson failed")
         time.sleep(count_refresh_interval)
 
-lesson_pairs = {}
 
 def main():
     client = CASClient()
@@ -77,9 +77,12 @@ def main():
     turn = es.get_open_turns().popitem()
     print(f"Begin course selection for turn {turn[1]}")
     cs = es.get_course_selection_system(turn[0])
+
+    lesson_pairs: dict[str, list[str]] = {}
     for code in select_courses(cs, lesson_pairs):
         print(code)
     print("Course selection completed")
+
 
 if __name__ == "__main__":
     main()

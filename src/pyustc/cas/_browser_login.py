@@ -3,13 +3,14 @@ import json
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
     from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support.ui import WebDriverWait
 except ImportError:
     msg = "The relevant modules are not installed. Please install them with 'pip install pyustc[browser]'"
     raise ImportError(msg)
 
 from ..url import generate_url
+
 
 def _get_driver(type: str, headless: bool):
     if type == "chrome":
@@ -27,7 +28,8 @@ def _get_driver(type: str, headless: bool):
         options.add_argument("--disable-gpu")
     options.add_argument("--no-sandbox")
     options.set_capability(f"{logging_prefix}:loggingPrefs", {"performance": "ALL"})
-    return driver_class(options=options)
+    return driver_class(options=options)  # type: ignore
+
 
 def login(usr: str, pwd: str, driver_type: str, headless: bool, timeout: int) -> str:
     url = generate_url("id", "cas/login")
@@ -40,9 +42,7 @@ def login(usr: str, pwd: str, driver_type: str, headless: bool, timeout: int) ->
         pwd_xpath = '//*[@id="normalLoginForm"]/div[2]/nz-input-group/input'
         driver.find_element(By.XPATH, pwd_xpath).send_keys(pwd)
         driver.find_element(By.ID, "submitBtn").click()
-        WebDriverWait(driver, timeout).until(
-            lambda d: d.current_url != url
-        )
+        WebDriverWait(driver, timeout).until(lambda d: d.current_url != url)
 
         for log in driver.get_log("performance"):
             msg = json.loads(log["message"])["message"]

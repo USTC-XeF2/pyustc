@@ -5,6 +5,7 @@ __version__ = "0.3.2"
 __all__ = ["CASClient", "EduSystem", "YouthService"]
 
 import sys
+
 if sys.version_info < (3, 11):
     try:
         import typing_extensions

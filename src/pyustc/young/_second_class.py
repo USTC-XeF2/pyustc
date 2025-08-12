@@ -1,11 +1,16 @@
+import copy
+from typing import Any
+
 try:
     from typing import Self
 except:
     from typing_extensions import Self
 
+from ..singleton import singleton_by_key_meta
+from ._filter import Department, Label, Module, SCFilter, TimePeriod
 from ._service import get_service
-from ._user import User 
-from ._filter import TimePeriod, Module, Department, Label, SCFilter
+from ._user import User
+
 
 class Status:
     status_list = {
@@ -17,8 +22,9 @@ class Status:
         33: "学时申请中",
         34: "学时审核通过",
         35: "学时驳回",
-        40: "结项"
+        40: "结项",
     }
+
     def __init__(self, code: int):
         self.code = code
 
@@ -29,8 +35,11 @@ class Status:
     def __repr__(self):
         return f"<Status {self.code} {repr(self.text)}>"
 
+
 class SignInfo:
-    def __init__(self, college: str, classes: str, phone: str, email: str = "", remarks: str = ""):
+    def __init__(
+        self, college: str, classes: str, phone: str, email: str = "", remarks: str = ""
+    ):
         self.college = college
         self.classes = classes
         self.phone = phone
@@ -40,7 +49,7 @@ class SignInfo:
     @classmethod
     def get_self(cls):
         user = User.get()
-        return cls(user.college, user.classes, user.phone)
+        return cls(user.college or "", user.classes, user.phone or "")
 
     def json(self):
         return {
@@ -48,51 +57,49 @@ class SignInfo:
             "classes": self.classes,
             "phone": self.phone,
             "email": self.email,
-            "remarks": self.remarks
+            "remarks": self.remarks,
         }
 
-class SecondClass:
-    _second_class_cache = dict[str, Self]()
-    def __new__(cls, id: str, *args, **kwargs):
-        if id in cls._second_class_cache:
-            return cls._second_class_cache[id]
-        else:
-            obj = super().__new__(cls)
-            cls._second_class_cache[id] = obj
-            return obj
 
-    def __init__(self, id: str, data: dict[str] = None):
+class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type: ignore
+    def __init__(self, id: str, data: dict[str, Any] | None = None):
         self.id = id
-        self.data = {}
-        self.update(data)
-        self._children = list[type(self)]()
+        self.data: dict[str, Any] = {}
+        if data is None:
+            self.update()
+        else:
+            self.data.update(data)
+        self._children: list[Self] = []
 
     @classmethod
-    def from_dict(cls, data: dict[str]):
-        return cls(data["id"], data = data)
+    def from_dict(cls, data: dict[str, Any]):
+        return cls(data["id"], data=data)
 
-    @classmethod
-    def _fetch(cls, name: str, filter: SCFilter, url: str, size: int):
-        if not filter:
-            filter = SCFilter()
+    @staticmethod
+    def _get_filter(name: str | None, ori_filter: SCFilter | None):
+        filter = copy.copy(ori_filter) if ori_filter else SCFilter()
         if name and not filter.name:
             filter.name = name
+        return filter
+
+    @classmethod
+    def _fetch(cls, filter: SCFilter, url: str, size: int):
         params = filter.generate_params()
         for i in get_service().page_search(url, params, -1, size):
             sc = cls.from_dict(i)
-            if filter.check(sc, only_strict = True):
+            if filter.check(sc, only_strict=True):
                 yield sc
 
     @classmethod
     def find(
-            cls,
-            name: str = None,
-            filter: SCFilter = None,
-            apply_ended: bool = False,
-            expand_series: bool = False,
-            max: int = -1,
-            size: int = 20
-        ):
+        cls,
+        name: str | None = None,
+        filter: SCFilter | None = None,
+        apply_ended: bool = False,
+        expand_series: bool = False,
+        max: int = -1,
+        size: int = 20,
+    ):
         """
         Find the second class that meets the conditions.
 
@@ -102,12 +109,16 @@ class SecondClass:
             apply_ended: Whether to show the second class that has ended or not.
             expand_series: Whether to expand the series to get all second classes in the series.
         """
-        if not max: return
+        if not max:
+            return
+        filter = cls._get_filter(name, filter)
         url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
-        for sc in cls._fetch(name, filter, url, size):
+        for sc in cls._fetch(filter, url, size):
             if expand_series and sc.is_series:
                 for i in sc.children:
-                    if filter.check(i, only_strict = True) and (apply_ended ^ (i.status.code <= 26)):
+                    if filter.check(i, only_strict=True) and (
+                        apply_ended ^ (i.status.code <= 26)
+                    ):
                         yield i
                         max -= 1
                     if not max:
@@ -120,17 +131,20 @@ class SecondClass:
 
     @classmethod
     def get_participated(
-            cls,
-            name: str = None,
-            filter: SCFilter = None,
-            max: int = -1,
-            size: int = 20
-        ):
+        cls,
+        name: str | None = None,
+        filter: SCFilter | None = None,
+        max: int = -1,
+        size: int = 20,
+    ):
         """
         Get the specific second class list that the user has participated in.
         """
-        if not max: return
-        for sc in cls._fetch(name, filter, "item/scParticipateItem/list", size):
+        if not max:
+            return
+        for sc in cls._fetch(
+            cls._get_filter(name, filter), "item/scParticipateItem/list", size
+        ):
             del sc.data["applyNum"]
             yield sc
             max -= 1
@@ -147,7 +161,7 @@ class SecondClass:
 
     @property
     def create_time(self):
-        return TimePeriod._strptime(self.data["createTime"])
+        return TimePeriod.parse_time(self.data["createTime"])
 
     @property
     def apply_time(self):
@@ -184,7 +198,11 @@ class SecondClass:
         """
         This method will check the status and the number of applicants.
         """
-        return self.status.code == 26 and not self.applied and self.apply_num < (self.apply_limit or 0)
+        return (
+            self.status.code == 26
+            and not self.applied
+            and self.apply_num < (self.apply_limit or 0)
+        )
 
     @property
     def need_sign_info(self) -> bool:
@@ -200,13 +218,18 @@ class SecondClass:
     def department(self):
         if "businessDeptName" not in self.data:
             self.update()
-        return Department(self.data["businessDeptId"], self.data["businessDeptName"], level = -1)
+        return Department(
+            self.data["businessDeptId"], self.data["businessDeptName"], level=-1
+        )
 
     @property
     def labels(self):
         if "lableNames" not in self.data:
             self.update()
-        return [Label(i, j) for i, j in zip(self.data["itemLable"].split(","), self.data["lableNames"])]
+        return [
+            Label(i, j)
+            for i, j in zip(self.data["itemLable"].split(","), self.data["lableNames"])
+        ]
 
     @property
     def conceive(self) -> str:
@@ -221,38 +244,37 @@ class SecondClass:
         if self._children or not self.is_series:
             return self._children
         url = "item/scItem/selectSignChirdItem"
-        params = {
-            "id": self.id
-        }
+        params = {"id": self.id}
         try:
-            self._children = [self.from_dict(i) for i in get_service().get_result(url, params)]
+            self._children = [
+                self.from_dict(i) for i in get_service().get_result(url, params)
+            ]
             return self._children
         except RuntimeError as e:
             e.args = ("Failed to get children",)
             raise e
 
-    def update(self, data: dict[str] = None):
-        if not data:
-            url = "item/scItem/queryById"
-            params = {
-                "id": self.id
-            }
-            try:
-                data = get_service().get_result(url, params)
-            except RuntimeError as e:
-                e.args = ("Failed to update",)
-                raise e
-        self.data.update(data)
+    def update(self):
+        url = "item/scItem/queryById"
+        params = {"id": self.id}
+        try:
+            self.data.update(get_service().get_result(url, params))
+        except RuntimeError as e:
+            e.args = ("Failed to update",)
+            raise e
 
     def get_applicants(self, max: int = -1, size: int = 50):
         url = "item/scItemRegistration/list"
-        params = {
-            "itemId": self.id
-        }
+        params = {"itemId": self.id}
         for i in get_service().page_search(url, params, max, size):
             yield str(i["username"])
 
-    def apply(self, force: bool = False, auto_cancel: bool = False, sign_info: SignInfo = None) -> bool:
+    def apply(
+        self,
+        force: bool = False,
+        auto_cancel: bool = False,
+        sign_info: SignInfo | None = None,
+    ) -> bool:
         """
         Apply for this second class.
 
@@ -265,13 +287,17 @@ class SecondClass:
             return False
         url = f"mobile/item/enter/{self.id}"
         data = get_service().request(
-            url, "post",
-            json=(sign_info or SignInfo.get_self()).json() if self.need_sign_info else {}
+            url,
+            "post",
+            json=(
+                (sign_info or SignInfo.get_self()).json() if self.need_sign_info else {}
+            ),
         )
-        if data["success"]: return True
+        if data["success"]:
+            return True
         if auto_cancel and "时间冲突" in data["message"]:
             for i in SecondClass.get_participated(
-                filter = SCFilter(time_period = self.hold_time)
+                filter=SCFilter(time_period=self.hold_time)
             ):
                 i.cancel_apply()
             return self.apply(force)
@@ -283,7 +309,8 @@ class SecondClass:
         """
         url = f"mobile/item/cancellRegistration/{self.id}"
         data = get_service().request(url, "post")
-        if data["success"]: return True
+        if data["success"]:
+            return True
         raise RuntimeError(data["message"])
 
     def __repr__(self):

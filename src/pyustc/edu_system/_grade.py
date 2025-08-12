@@ -1,7 +1,11 @@
+from collections.abc import Callable
+from typing import Any
+
 import requests
 
+
 class Course:
-    def __init__(self, data: dict[str]):
+    def __init__(self, data: dict[str, Any]):
         self.id: int = data["id"]
         self.name: str = data["courseNameCh"]
         self.code: int = data["courseAssoc"]
@@ -13,6 +17,7 @@ class Course:
         self.gpa: float | None = data["gp"]
         self.passed: bool = data["passed"]
         self.abandoned: bool = not data["transcript"]
+
 
 grade_score_map = {
     "A+": 98,
@@ -27,11 +32,12 @@ grade_score_map = {
     "D+": 65,
     "D": 63,
     "D-": 61,
-    "F": 0
+    "F": 0,
 }
 
+
 class GradeSheet:
-    def __init__(self, data: list[dict[str]]):
+    def __init__(self, data: list[dict[str, Any]]):
         self.courses = [Course(j) for i in data for j in i["scores"]]
 
     @property
@@ -75,21 +81,27 @@ class GradeSheet:
     def weighted_score(self):
         return self._calculate_score(weighted=True)
 
+
 class GradeManager:
-    def __init__(self, request_func):
+    def __init__(self, request_func: Callable[..., requests.Response]):
         self._request_func = request_func
 
-        self.train_types: dict[int, str] = {i["id"]: i["name"]
-                                            for i in self._get("getGradeSheetTypes").json()}
-        self.semesters: dict[int, tuple[str, str]] = {i["id"]: (i["nameZh"], i["schoolYear"])
-                                                      for i in self._get("getSemesters").json()}
+        self.train_types: dict[int, str] = {
+            i["id"]: i["name"] for i in self._get("getGradeSheetTypes").json()
+        }
+        self.semesters: dict[int, tuple[str, str]] = {
+            i["id"]: (i["nameZh"], i["schoolYear"])
+            for i in self._get("getSemesters").json()
+        }
 
-    def _get(self, url: str, params: dict[str] = None) -> requests.Response:
+    def _get(self, url: str, params: dict[str, Any] | None = None):
         return self._request_func("for-std/grade/sheet/" + url, params=params)
 
-    def get_grade_sheet(self, train_type: int = None, semesters: int | list[int] = None):
-        res = self._get("getGradeList", params={
-            "trainTypeId": train_type,
-            "semesterIds": semesters or ""
-        })
+    def get_grade_sheet(
+        self, train_type: int | None = None, semesters: int | list[int] | None = None
+    ):
+        res = self._get(
+            "getGradeList",
+            params={"trainTypeId": train_type, "semesterIds": semesters or ""},
+        )
         return GradeSheet(res.json()["semesters"])
