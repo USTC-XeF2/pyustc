@@ -50,7 +50,7 @@ class Course:
             return self.start_time, self.end_time
 
     def __repr__(self):
-        return f"<Course {repr(self.name)}>"
+        return f"<Course {self.name!r}>"
 
 
 class CourseTable:

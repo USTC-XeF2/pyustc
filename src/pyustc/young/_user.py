@@ -33,7 +33,7 @@ class User:
         return self._phone
 
     def __repr__(self):
-        return f"<User {self.id} {repr(self.name)}>"
+        return f"<User {self.id} {self.name!r}>"
 
     @classmethod
     def find(

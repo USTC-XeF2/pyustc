@@ -1,5 +1,5 @@
-from collections.abc import Iterable
-from typing import Any, Callable, Literal, overload
+from collections.abc import Callable, Iterable
+from typing import Any, Literal, overload
 
 import requests
 
@@ -42,7 +42,7 @@ class AddDropResponse:
         self.success = data["success"]
         try:
             self.error = data["errorMessage"]["text"]
-        except:
+        except KeyError:
             self.error = None
 
     def __repr__(self):
@@ -69,7 +69,7 @@ class CourseSelectionSystem:
     def student_id(self):
         return self._student_id
 
-    def _get(self, url: str, data: dict[str, Any] | None = None) -> requests.Response:
+    def _get(self, url: str, data: dict[str, Any] | None = None):
         if not data:
             data = {"turnId": self.turn_id, "studentId": self.student_id}
         return self._request_func(
@@ -77,14 +77,14 @@ class CourseSelectionSystem:
         )
 
     @property
-    def addable_lessons(self) -> list[Lesson]:
+    def addable_lessons(self):
         if self._addable_lessons is None:
             self.refresh_addable_lessons()
         assert self._addable_lessons is not None
         return self._addable_lessons
 
     @property
-    def selected_lessons(self) -> list[Lesson]:
+    def selected_lessons(self):
         data = self._get("selected-lessons").json()
         return [Lesson(i) for i in data]
 
@@ -99,31 +99,16 @@ class CourseSelectionSystem:
         teacher: str | None = None,
         fuzzy: bool = True,
     ):
-        results: list[Lesson] = []
-        for lesson in self.addable_lessons:
-            if code:
-                if fuzzy:
-                    if code not in lesson.code:
-                        continue
-                else:
-                    if code != lesson.code:
-                        continue
-            if name:
-                if fuzzy:
-                    if name not in lesson.course.name:
-                        continue
-                else:
-                    if name != lesson.course.name:
-                        continue
-            if teacher:
-                if fuzzy:
-                    if not any(teacher in i for i in lesson.teachers):
-                        continue
-                else:
-                    if teacher not in lesson.teachers:
-                        continue
-            results.append(lesson)
-        return results
+        def match(value: str | None, target: str):
+            return value is None or (value in target if fuzzy else value == target)
+
+        return [
+            lesson
+            for lesson in self.addable_lessons
+            if match(code, lesson.code)
+            and match(name, lesson.course.name)
+            and any(match(teacher, i) for i in lesson.teachers)
+        ]
 
     @overload
     def get_lesson(self, code: str, throw: Literal[True]) -> Lesson: ...

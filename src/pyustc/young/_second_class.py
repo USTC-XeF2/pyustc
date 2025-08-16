@@ -1,10 +1,6 @@
-import copy
-from typing import Any
-
-try:
-    from typing import Self
-except:
-    from typing_extensions import Self
+from enum import Enum
+from functools import cached_property
+from typing import Any, Self
 
 from ..singleton import singleton_by_key_meta
 from ._filter import Department, Label, Module, SCFilter, TimePeriod
@@ -12,28 +8,34 @@ from ._service import get_service
 from ._user import User
 
 
-class Status:
-    status_list = {
-        26: "报名中",
-        28: "报名已结束",
-        30: "学时公示中",
-        31: "追加学时公示",
-        32: "公示已结束",
-        33: "学时申请中",
-        34: "学时审核通过",
-        35: "学时驳回",
-        40: "结项",
-    }
+class Status(Enum):
+    APPLYING = 26, "报名中"
+    APPLY_ENDED = 28, "报名已结束"
+    HOUR_PUBLIC = 30, "学时公示中"
+    HOUR_APPEND_PUBLIC = 31, "追加学时公示"
+    PUBLIC_ENDED = 32, "公示已结束"
+    HOUR_APPLYING = 33, "学时申请中"
+    HOUR_APPROVED = 34, "学时审核通过"
+    HOUR_REJECTED = 35, "学时驳回"
+    FINISHED = 40, "结项"
 
-    def __init__(self, code: int):
-        self.code = code
+    @property
+    def code(self):
+        return self.value[0]
 
     @property
     def text(self):
-        return self.status_list.get(self.code)
+        return self.value[1]
+
+    @classmethod
+    def from_code(cls, code: int):
+        for status in cls:
+            if status.code == code:
+                return status
+        raise ValueError(f"Unknown status code: {code}")
 
     def __repr__(self):
-        return f"<Status {self.code} {repr(self.text)}>"
+        return f"<Status {self.code} {self.text!r}>"
 
 
 class SignInfo:
@@ -69,18 +71,16 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
             self.update()
         else:
             self.data.update(data)
-        self._children: list[Self] = []
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]):
         return cls(data["id"], data=data)
 
     @staticmethod
-    def _get_filter(name: str | None, ori_filter: SCFilter | None):
-        filter = copy.copy(ori_filter) if ori_filter else SCFilter()
-        if name and not filter.name:
-            filter.name = name
-        return filter
+    def _get_filter(name_or_filter: str | SCFilter | None):
+        if isinstance(name_or_filter, SCFilter):
+            return name_or_filter
+        return SCFilter(name=name_or_filter)
 
     @classmethod
     def _fetch(cls, filter: SCFilter, url: str, size: int):
@@ -93,8 +93,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     @classmethod
     def find(
         cls,
-        name: str | None = None,
-        filter: SCFilter | None = None,
+        name_or_filter: str | SCFilter | None = None,
         apply_ended: bool = False,
         expand_series: bool = False,
         max: int = -1,
@@ -111,13 +110,13 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         """
         if not max:
             return
-        filter = cls._get_filter(name, filter)
+        filter = cls._get_filter(name_or_filter)
         url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
         for sc in cls._fetch(filter, url, size):
             if expand_series and sc.is_series:
                 for i in sc.children:
                     if filter.check(i, only_strict=True) and (
-                        apply_ended ^ (i.status.code <= 26)
+                        apply_ended ^ (i.status == Status.APPLYING)
                     ):
                         yield i
                         max -= 1
@@ -132,8 +131,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     @classmethod
     def get_participated(
         cls,
-        name: str | None = None,
-        filter: SCFilter | None = None,
+        name_or_filter: str | SCFilter | None = None,
         max: int = -1,
         size: int = 20,
     ):
@@ -143,7 +141,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         if not max:
             return
         for sc in cls._fetch(
-            cls._get_filter(name, filter), "item/scParticipateItem/list", size
+            cls._get_filter(name_or_filter), "item/scParticipateItem/list", size
         ):
             del sc.data["applyNum"]
             yield sc
@@ -157,7 +155,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
 
     @property
     def status(self):
-        return Status(self.data["itemStatus"])
+        return Status.from_code(self.data["itemStatus"])
 
     @property
     def create_time(self):
@@ -199,7 +197,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         This method will check the status and the number of applicants.
         """
         return (
-            self.status.code == 26
+            self.status == Status.APPLYING
             and not self.applied
             and self.apply_num < (self.apply_limit or 0)
         )
@@ -239,17 +237,14 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     def is_series(self) -> bool:
         return self.data["itemCategory"] == "1"
 
-    @property
-    def children(self):
-        if self._children or not self.is_series:
-            return self._children
+    @cached_property
+    def children(self) -> list[Self]:
+        if not self.is_series:
+            return []
         url = "item/scItem/selectSignChirdItem"
         params = {"id": self.id}
         try:
-            self._children = [
-                self.from_dict(i) for i in get_service().get_result(url, params)
-            ]
-            return self._children
+            return [self.from_dict(i) for i in get_service().get_result(url, params)]
         except RuntimeError as e:
             e.args = ("Failed to get children",)
             raise e
@@ -296,9 +291,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         if data["success"]:
             return True
         if auto_cancel and "时间冲突" in data["message"]:
-            for i in SecondClass.get_participated(
-                filter=SCFilter(time_period=self.hold_time)
-            ):
+            for i in SecondClass.get_participated(SCFilter(time_period=self.hold_time)):
                 i.cancel_apply()
             return self.apply(force)
         raise RuntimeError(data["message"])
@@ -315,5 +308,5 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
 
     def __repr__(self):
         if self.is_series:
-            return f"<SecondClass {repr(self.name)} Series>"
-        return f"<SecondClass {repr(self.name)}>"
+            return f"<SecondClass {self.name!r} Series>"
+        return f"<SecondClass {self.name!r}>"

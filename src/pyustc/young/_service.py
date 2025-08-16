@@ -1,3 +1,4 @@
+import contextvars
 from typing import Any
 
 import requests
@@ -21,15 +22,11 @@ class YouthService:
         self._session.headers.update({"X-Access-Token": data["result"]["token"]})
 
     def __enter__(self):
-        self._origin_service = globals().get("service")
-        global service
-        service = self
+        self._token = _current_service.set(self)
         return self
 
     def __exit__(self, *_):
-        if self._origin_service:
-            global service
-            service = self._origin_service
+        _current_service.reset(self._token)
 
     def request(
         self,
@@ -50,11 +47,12 @@ class YouthService:
         for _ in range(self.retry):
             try:
                 data = self.request(url, "get", params)
-                if data["success"]:
-                    return data["result"]
-                raise RuntimeError(data["message"])
             except Exception as e:
                 error = e
+                continue
+            if data["success"]:
+                return data["result"]
+            error = RuntimeError(data["message"])
         raise error
 
     def page_search(self, url: str, params: dict[str, Any], max: int, size: int):
@@ -74,9 +72,13 @@ class YouthService:
             page += 1
 
 
-def get_service() -> YouthService:
+_current_service = contextvars.ContextVar[YouthService]("youth_service")
+
+
+def get_service():
     try:
-        return service
-    except NameError:
-        msg = "Not in context, please use 'with YouthService(CASClient)' to create a context"
-        raise RuntimeError(msg)
+        return _current_service.get()
+    except LookupError:
+        raise RuntimeError(
+            "Not in context, please use 'with YouthService(CASClient)' to create a context"
+        )

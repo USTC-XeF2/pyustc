@@ -3,7 +3,7 @@ import json
 try:
     from selenium import webdriver
     from selenium.webdriver.common.by import By
-    from selenium.webdriver.support import expected_conditions as EC
+    from selenium.webdriver.support import expected_conditions as ec
     from selenium.webdriver.support.ui import WebDriverWait
 except ImportError:
     msg = "The relevant modules are not installed. Please install them with 'pip install pyustc[browser]'"
@@ -37,7 +37,7 @@ def login(usr: str, pwd: str, driver_type: str, headless: bool, timeout: int) ->
         driver.get(url)
 
         WebDriverWait(driver, timeout).until(
-            EC.presence_of_element_located((By.NAME, "username"))
+            ec.presence_of_element_located((By.NAME, "username"))
         ).send_keys(usr)
         pwd_xpath = '//*[@id="normalLoginForm"]/div[2]/nz-input-group/input'
         driver.find_element(By.XPATH, pwd_xpath).send_keys(pwd)

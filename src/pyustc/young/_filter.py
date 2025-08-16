@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-import datetime
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, Generator
-
-try:
-    from typing import Self
-except:
-    from typing_extensions import Self
+from collections.abc import Generator
+from datetime import datetime
+from typing import TYPE_CHECKING, Any, Self
 
 from ._service import get_service
 
@@ -16,9 +12,7 @@ if TYPE_CHECKING:
 
 
 class TimePeriod:
-    def __init__(
-        self, start: datetime.datetime | str, end: datetime.datetime | str | None = None
-    ):
+    def __init__(self, start: datetime | str, end: datetime | str | None = None):
         if isinstance(start, str):
             start = self.parse_time(start)
         if not end:
@@ -31,8 +25,8 @@ class TimePeriod:
         self.end = end
 
     @staticmethod
-    def parse_time(s: str) -> datetime.datetime:
-        return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+    def parse_time(s: str) -> datetime:
+        return datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
 
     def is_contain(self, other: Self):
         return self.start <= other.start and self.end >= other.end
@@ -40,7 +34,7 @@ class TimePeriod:
     def is_overlap(self, other: Self):
         return self.start <= other.end and self.end >= other.start
 
-    def __contains__(self, time: datetime.datetime):
+    def __contains__(self, time: datetime):
         return self.start <= time <= self.end
 
     def __repr__(self):
@@ -82,7 +76,7 @@ class Module(Tag):
         return cls(data["value"], data["text"])
 
     def __repr__(self):
-        return f"<Module {repr(self.text)}>"
+        return f"<Module {self.text!r}>"
 
 
 class Department(Tag):
@@ -135,7 +129,7 @@ class Department(Tag):
         return next(self.find(name, max_level), None)
 
     def __repr__(self):
-        return f"<Department {repr(self.name)} level={self.level}>"
+        return f"<Department {self.name!r} level={self.level}>"
 
 
 class Label(Tag):
@@ -152,7 +146,7 @@ class Label(Tag):
         return cls(data["id"], data["name"])
 
     def __repr__(self):
-        return f"<Label {repr(self.name)}>"
+        return f"<Label {self.name!r}>"
 
 
 class SCFilter:
@@ -160,7 +154,7 @@ class SCFilter:
     The filter for the second class.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         name: str | None = None,
         time_period: TimePeriod | None = None,
@@ -204,15 +198,13 @@ class SCFilter:
         """
         Check if the second lesson meets the requirements.
         """
-        if not only_strict:
-            if self.fuzzy_name and self.name.lower() not in sc.name.lower():
-                return False
-            if self.module and self.module.value != sc.module.value:
-                return False
-            if self.department and self.department.id != sc.department.id:
-                return False
-            if self.labels and not any(i in sc.labels for i in self.labels):
-                return False
+        if not only_strict and (
+            (self.fuzzy_name and self.name.lower() not in sc.name.lower())
+            or (self.module and self.module.value != sc.module.value)
+            or (self.department and self.department.id != sc.department.id)
+            or (self.labels and not any(i in sc.labels for i in self.labels))
+        ):
+            return False
         if not self.fuzzy_name and self.name != sc.name:
             return False
         if self.time_period:

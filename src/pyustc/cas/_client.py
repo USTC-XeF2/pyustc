@@ -100,7 +100,7 @@ class CASClient:
         res = self._request(
             "cas/login", method="post", data=data, allow_redirects=False
         )
-        if res.status_code != 302:
+        if not res.is_redirect:
             pattern = r'<div\s+class="alert alert-danger"\s+id="login-error-msg">\s*<span>([^<]+)</span>\s*</div>'
             match = re.search(pattern, res.text)
             raise RuntimeError(match.group(1) if match else "Login failed")
@@ -125,7 +125,7 @@ class CASClient:
         """
         usr, pwd = self._get_usr_and_pwd(username, password)
 
-        from ._browser_login import login
+        from ._browser_login import login  # noqa: PLC0415
 
         token = login(usr, pwd, driver_type, headless, timeout)
         self.login_by_token(token)
@@ -153,19 +153,19 @@ class CASClient:
         Check if the user has logged in.
         """
         res = self._request("cas/login", allow_redirects=False)
-        return res.status_code == 302
+        return res.is_redirect
 
     def get_info(self):
         """
         Get the user's information. If the user is not logged in, an error will be raised.
         """
         user: dict[str, str] = self._request("gate/getUser").json()
-        if objectId := user.get("objectId"):
-            personId = self._request(
-                f"gate/linkid/api/user/getPersonId/{objectId}"
+        if object_id := user.get("object_id"):
+            person_id = self._request(
+                f"gate/linkid/api/user/getPersonId/{object_id}"
             ).json()["data"]
             info = self._request(
-                f"gate/linkid/api/aggregate/user/userInfo/{personId}", method="post"
+                f"gate/linkid/api/aggregate/user/userInfo/{person_id}", method="post"
             ).json()["data"]
             return UserInfo(
                 user["username"],
@@ -173,7 +173,7 @@ class CASClient:
                 lambda key: self._request(
                     "gate/linkid/api/aggregate/user/getNoMaskData",
                     method="post",
-                    json={"indentityId": objectId, "standardKey": key},
+                    json={"indentityId": object_id, "standardKey": key},
                 ).json()["data"],
             )
         raise RuntimeError("Failed to get info")
@@ -182,7 +182,7 @@ class CASClient:
         res = self._request(
             "cas/login", params={"service": service}, allow_redirects=False
         )
-        if res.status_code == 302:
+        if res.is_redirect:
             location = res.headers["Location"]
             query = parse_qs(urlparse(location).query)
             if "ticket" in query:

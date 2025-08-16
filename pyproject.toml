@@ -15,14 +15,13 @@ dependencies = [
   "pycryptodome",
   "fake-useragent",
   "beautifulsoup4",
-  "typing_extensions>=4.0.0; python_version < '3.11'"
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.11"
 classifiers = [
-    "Development Status :: 4 - Beta",
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-    "Topic :: Software Development :: Libraries :: Python Modules",
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
@@ -35,3 +34,17 @@ browser = [
 [project.urls]
 Homepage = "https://github.com/USTC-XeF2/pyustc"
 Issues = "https://github.com/USTC-XeF2/pyustc/issues"
+
+[tool.ruff]
+select = [
+  "F",
+  "E",
+  "W",
+  "I",
+  "UP",
+  "N",
+  "PL",
+  "PERF",
+  "RUF",
+]
+ignore = ["E501"]

@@ -4,7 +4,7 @@ from typing import Any
 import requests
 
 
-class Course:
+class GradeSheetCourse:
     def __init__(self, data: dict[str, Any]):
         self.id: int = data["id"]
         self.name: str = data["courseNameCh"]
@@ -38,7 +38,7 @@ grade_score_map = {
 
 class GradeSheet:
     def __init__(self, data: list[dict[str, Any]]):
-        self.courses = [Course(j) for i in data for j in i["scores"]]
+        self.courses = [GradeSheetCourse(j) for i in data for j in i["scores"]]
 
     @property
     def total_courses(self):

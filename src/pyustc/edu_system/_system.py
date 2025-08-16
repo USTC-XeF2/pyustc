@@ -1,4 +1,4 @@
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 import requests
 from bs4 import BeautifulSoup
@@ -17,7 +17,7 @@ SEMESTER = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
 
 
 class EduSystem:
-    _semesters: dict[SEMESTER, int] = {}
+    _semesters: ClassVar[dict[SEMESTER, int]] = {}
 
     def __init__(self, client: CASClient):
         self._session = requests.Session()

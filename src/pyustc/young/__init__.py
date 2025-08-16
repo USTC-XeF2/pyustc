@@ -8,9 +8,9 @@ __all__ = [
     "Label",
     "Module",
     "SCFilter",
-    "TimePeriod",
     "SecondClass",
     "SignInfo",
-    "YouthService",
+    "TimePeriod",
     "User",
+    "YouthService",
 ]
