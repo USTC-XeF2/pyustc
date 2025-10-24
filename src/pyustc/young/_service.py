@@ -1,7 +1,12 @@
+import base64
 import contextvars
+import json
+import time
 from typing import Any
 
 import requests
+from Crypto.Cipher import AES
+from Crypto.Util.Padding import pad
 
 from ..cas import CASClient
 from ..url import generate_url
@@ -19,7 +24,8 @@ class YouthService:
         )
         if not data["success"]:
             raise RuntimeError(data["message"])
-        self._session.headers.update({"X-Access-Token": data["result"]["token"]})
+        self._access_token: str = data["result"]["token"]
+        self._session.headers.update({"X-Access-Token": self._access_token})
 
     def __enter__(self):
         self._token = _current_service.set(self)
@@ -28,6 +34,18 @@ class YouthService:
     def __exit__(self, *_):
         _current_service.reset(self._token)
 
+    def _encrypt(self, data: dict[str, Any], timestamp: int):
+        access_token = getattr(
+            self, "_access_token", "kPBNkx0sSO3aIBaKDt9d2GJURVJfzFuP"
+        )
+        cipher = AES.new(
+            access_token[-16:].encode(), AES.MODE_CBC, access_token[-32:-16].encode()
+        )
+        json_string = json.dumps(data | {"_t": timestamp})
+        return base64.b64encode(
+            cipher.encrypt(pad(json_string.encode(), AES.block_size))
+        ).decode()
+
     def request(
         self,
         url: str,
@@ -35,11 +53,15 @@ class YouthService:
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        timestamp = int(time.time() * 1000)
         return self._session.request(
             method,
             generate_url("young", f"login/wisdom-group-learning-bg/{url}"),
-            params=params,
-            json=json,
+            params={
+                "requestParams": self._encrypt(params or {}, timestamp),
+                "_t": timestamp,
+            },
+            json={"requestParams": self._encrypt(json or {}, timestamp)},
         ).json()
 
     def get_result(self, url: str, params: dict[str, Any] | None = None):
