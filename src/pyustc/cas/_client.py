@@ -160,7 +160,7 @@ class CASClient:
         Get the user's information. If the user is not logged in, an error will be raised.
         """
         user: dict[str, str] = self._request("gate/getUser").json()
-        if object_id := user.get("object_id"):
+        if object_id := user.get("objectId"):
             person_id = self._request(
                 f"gate/linkid/api/user/getPersonId/{object_id}"
             ).json()["data"]
