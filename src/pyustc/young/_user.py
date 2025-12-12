@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Generator
 from typing import Any
 
-from ._service import get_service
+from .service import get_service
 
 
 class User:

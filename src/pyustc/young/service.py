@@ -8,8 +8,8 @@ import requests
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
+from .._url import generate_url
 from ..cas import CASClient
-from ..url import generate_url
 
 
 class YouthService:

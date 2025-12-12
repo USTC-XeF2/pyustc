@@ -1,9 +1,11 @@
-from pyustc import EduSystem
+from pyustc import CASClient, EAMSClient
 
-es = EduSystem(...) # See examples/edu_system.py for how to create a EduSystem instance
+client = EAMSClient(
+    CASClient()
+)  # See examples/cas_client.py for how to create a logged in CASClient instance
 
 # Get the grade manager
-gm = es.get_grade_manager()
+gm = client.get_grade_manager()
 print(gm.train_types, gm.semesters)
 
 # Get the grade sheet
@@ -20,7 +22,7 @@ for course in sheet.courses:
         course.hour,
         course.credits,
         course.score,
-        course.gpa, # None if the course is not graded 
+        course.gpa,  # None if the course is not graded
         course.passed,
-        course.abandoned # True if the course is abandoned (not counted in GPA and credits)
+        course.abandoned,  # True if the course is abandoned (not counted in GPA and credits)
     )

@@ -4,25 +4,25 @@ import requests
 from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 
+from .._url import generate_url
 from ..cas import CASClient
-from ..url import generate_url
-from ._adjust import CourseAdjustmentSystem
 from ._course import CourseTable
 from ._grade import GradeManager
-from ._select import CourseSelectionSystem
+from .adjust import CourseAdjustmentSystem
+from .select import CourseSelectionSystem
 
 _ua = UserAgent(platforms="desktop")
 
 SEMESTER = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
 
 
-class EduSystem:
+class EAMSClient:
     _semesters: ClassVar[dict[SEMESTER, int]] = {}
 
     def __init__(self, client: CASClient):
         self._session = requests.Session()
         self._session.headers["User-Agent"] = _ua.random
-        ticket = client.get_ticket(generate_url("edu_system", "ucas-sso/login"))
+        ticket = client.get_ticket(generate_url("eams", "ucas-sso/login"))
         res = self._request("ucas-sso/login", params={"ticket": ticket})
         if not res.url.endswith("home"):
             raise RuntimeError("Failed to login")
@@ -46,7 +46,7 @@ class EduSystem:
                 cls._semesters["now"] = value
 
     def _request(self, url: str, method: str = "get", **kwargs: Any):
-        return self._session.request(method, generate_url("edu_system", url), **kwargs)
+        return self._session.request(method, generate_url("eams", url), **kwargs)
 
     def get_current_teach_week(self) -> int:
         """
@@ -72,7 +72,6 @@ class EduSystem:
         Get the open turns for course selection.
         """
         data: dict[str, int] = {"bizTypeId": 2, "studentId": self._student_id}
-        self._request("for-std/course-select", allow_redirects=False)
         res = self._request("ws/for-std/course-select/open-turns", "post", data=data)
         return {i["id"]: i["name"] for i in res.json()}
 

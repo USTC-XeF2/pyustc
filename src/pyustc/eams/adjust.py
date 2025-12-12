@@ -4,7 +4,7 @@ from typing import Any
 
 import requests
 
-from ._select import AddDropResponse, Lesson
+from .select import AddDropResponse, Lesson
 
 
 class CourseAdjustmentSystem:

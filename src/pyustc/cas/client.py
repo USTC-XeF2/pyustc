@@ -9,8 +9,8 @@ import requests
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 
-from ..url import generate_url
-from ._info import UserInfo
+from .._url import generate_url
+from .info import UserInfo
 
 
 class CASClient:
@@ -104,31 +104,6 @@ class CASClient:
             pattern = r'<div\s+class="alert alert-danger"\s+id="login-error-msg">\s*<span>([^<]+)</span>\s*</div>'
             match = re.search(pattern, res.text)
             raise RuntimeError(match.group(1) if match else "Login failed")
-
-    def login_by_browser(
-        self,
-        username: str | None = None,
-        password: str | None = None,
-        driver_type: str = "chrome",
-        headless: bool = False,
-        timeout: int = 20,
-    ):
-        """
-        Login to the system using a browser.
-
-        Arguments:
-            username: The username to login. If not set, will use the environment variable `USTC_CAS_USR`.
-            password: The password to login. If not set, will use the environment variable `USTC_CAS_PWD`.
-            driver_type: The type of the browser driver to use.
-            headless: Whether to run the browser in headless mode.
-            timeout: The timeout for the browser login.
-        """
-        usr, pwd = self._get_usr_and_pwd(username, password)
-
-        from ._browser_login import login  # noqa: PLC0415
-
-        token = login(usr, pwd, driver_type, headless, timeout)
-        self.login_by_token(token)
 
     def save_token(self, path: str):
         """

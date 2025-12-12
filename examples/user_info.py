@@ -11,6 +11,6 @@ print(
     user.name,
     user.gid,
     user.email,
-    user.idcard, # need to request again
-    user.phone # need to request again
+    user.idcard,  # need to request again
+    user.phone,  # need to request again
 )

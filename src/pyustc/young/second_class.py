@@ -2,10 +2,10 @@ from enum import Enum
 from functools import cached_property
 from typing import Any, Self
 
-from ..singleton import singleton_by_key_meta
-from ._filter import Department, Label, Module, SCFilter, TimePeriod
-from ._service import get_service
+from .._singleton import singleton_by_key_meta
 from ._user import User
+from .filter import Department, Label, Module, SCFilter, TimePeriod
+from .service import get_service
 
 
 class Status(Enum):

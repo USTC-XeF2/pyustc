@@ -5,10 +5,10 @@ from collections.abc import Generator
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Self
 
-from ._service import get_service
+from .service import get_service
 
 if TYPE_CHECKING:
-    from ._second_class import SecondClass
+    from .second_class import SecondClass
 
 
 class TimePeriod:

@@ -10,7 +10,7 @@ A Python package that allows for quick use of USTC network services.
 ## Features
 
 - **Central Authentication Service**: Simplifies login and session management.
-- **Educational System**: Access course table, grades, and course planning tools.
+- **Educational Administration Management System**: Access course table, grades, and course planning tools.
 - **Young Platform**: Manage Second Classes.
 
 ## Installation
@@ -32,7 +32,7 @@ client = CASClient()
 client.login_by_pwd('username', 'password')
 ```
 
-For more examples and detailed documentation, see [here](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
+For more examples and detailed documentation, see [Examples](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
 
 ## Contributing
 

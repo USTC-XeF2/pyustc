@@ -1,7 +1,7 @@
 import time
 
-from pyustc import CASClient, EduSystem
-from pyustc.edu_system import CourseSelectionSystem, Lesson
+from pyustc import CASClient, EAMSClient
+from pyustc.eams.select import CourseSelectionSystem, Lesson
 
 
 def select_courses(
@@ -70,13 +70,13 @@ def select_courses(
 
 
 def main():
-    client = CASClient()
-    client.login_by_browser(headless=True)
-    es = EduSystem(client)
+    cas_client = CASClient()
+    cas_client.login_by_pwd()
+    eams_client = EAMSClient(cas_client)
 
-    turn = es.get_open_turns().popitem()
+    turn = eams_client.get_open_turns().popitem()
     print(f"Begin course selection for turn {turn[1]}")
-    cs = es.get_course_selection_system(turn[0])
+    cs = eams_client.get_course_selection_system(turn[0])
 
     lesson_pairs: dict[str, list[str]] = {}
     for code in select_courses(cs, lesson_pairs):

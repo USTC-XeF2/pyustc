@@ -3,7 +3,7 @@ from typing import Any, Literal, overload
 
 import requests
 
-from ..singleton import singleton_by_field_meta
+from .._singleton import singleton_by_field_meta
 
 
 class Course(metaclass=singleton_by_field_meta("id")):
@@ -46,7 +46,8 @@ class AddDropResponse:
             self.error = None
 
     def __repr__(self):
-        return f"<Response {self.type} {self.success}{(' ' + self.error) if self.error else ''}>"
+        result = f"{'success' if self.success else 'failed'}{(':' + self.error) if self.error else ''}"
+        return f"<Response type={self.type} {result}>"
 
 
 class CourseSelectionSystem:

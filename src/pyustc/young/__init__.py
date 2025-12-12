@@ -1,7 +1,7 @@
-from ._filter import Department, Label, Module, SCFilter, TimePeriod
-from ._second_class import SecondClass, SignInfo
-from ._service import YouthService
 from ._user import User
+from .filter import Department, Label, Module, SCFilter, TimePeriod
+from .second_class import SecondClass, SignInfo
+from .service import YouthService
 
 __all__ = [
     "Department",

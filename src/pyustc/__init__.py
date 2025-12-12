@@ -1,9 +1,9 @@
 # Copyright (c) 2025 XeF2
 
 __author__ = "XeF2"
-__version__ = "0.3.2"
-__all__ = ["CASClient", "EduSystem", "YouthService"]
+__version__ = "1.0.0"
+__all__ = ["CASClient", "EAMSClient", "YouthService"]
 
 from .cas import CASClient
-from .edu_system import EduSystem
+from .eams import EAMSClient
 from .young import YouthService

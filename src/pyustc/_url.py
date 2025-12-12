@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 root_url = {
     "id": "https://id.ustc.edu.cn",
-    "edu_system": "https://jw.ustc.edu.cn",
+    "eams": "https://jw.ustc.edu.cn",
     "young": "https://young.ustc.edu.cn",
 }
 

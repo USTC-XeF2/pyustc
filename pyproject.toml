@@ -1,34 +1,35 @@
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "pyustc"
-version = "0.3.2"
-authors = [
-  { name="XeF2", email="xef2@mail.ustc.edu.cn" },
-]
+version = "1.0.0"
 description = "A Python package that allows for quick use of USTC network services"
 readme = "README.md"
-dependencies = [
-  "requests",
-  "pycryptodome",
-  "fake-useragent",
-  "beautifulsoup4",
+authors = [
+    { name = "XeF2", email = "contact@xef2.top" }
 ]
 requires-python = ">=3.11"
+dependencies = [
+    "beautifulsoup4>=4.14",
+    "fake-useragent>=2.2.0",
+    "pycryptodome>=3.23",
+    "requests>=2.32",
+]
 classifiers = [
-  "Development Status :: 4 - Beta",
-  "Programming Language :: Python :: 3",
-  "Operating System :: OS Independent",
-  "Topic :: Software Development :: Libraries :: Python Modules",
+    "Development Status :: 5 - Production/Stable",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
-[project.optional-dependencies]
-browser = [
-  "selenium",
+[build-system]
+requires = ["uv_build>=0.8.13,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.1",
+    "ruff>=0.14.6",
 ]
 
 [project.urls]
@@ -37,14 +38,14 @@ Issues = "https://github.com/USTC-XeF2/pyustc/issues"
 
 [tool.ruff]
 select = [
-  "F",
-  "E",
-  "W",
-  "I",
-  "UP",
-  "N",
-  "PL",
-  "PERF",
-  "RUF",
+    "F",
+    "E",
+    "W",
+    "I",
+    "UP",
+    "N",
+    "PL",
+    "PERF",
+    "RUF",
 ]
 ignore = ["E501"]
