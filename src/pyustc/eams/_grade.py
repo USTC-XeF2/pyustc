@@ -1,7 +1,6 @@
-from collections.abc import Callable
 from typing import Any
 
-import requests
+from httpx import AsyncClient
 
 
 class GradeSheetCourse:
@@ -83,25 +82,28 @@ class GradeSheet:
 
 
 class GradeManager:
-    def __init__(self, request_func: Callable[..., requests.Response]):
-        self._request_func = request_func
+    async def __init__(self, client: AsyncClient):
+        self._client = client
 
-        self.train_types: dict[int, str] = {
-            i["id"]: i["name"] for i in self._get("getGradeSheetTypes").json()
-        }
-        self.semesters: dict[int, tuple[str, str]] = {
+    async def _get(self, url: str, params: dict[str, Any] | None = None):
+        return (
+            await self._client.get("/for-std/grade/sheet/" + url, params=params)
+        ).json()
+
+    async def get_train_types(self):
+        return {i["id"]: i["name"] for i in (await self._get("getGradeSheetTypes"))}
+
+    async def get_semesters(self):
+        return {
             i["id"]: (i["nameZh"], i["schoolYear"])
-            for i in self._get("getSemesters").json()
+            for i in (await self._get("getSemesters"))
         }
 
-    def _get(self, url: str, params: dict[str, Any] | None = None):
-        return self._request_func("for-std/grade/sheet/" + url, params=params)
-
-    def get_grade_sheet(
+    async def get_grade_sheet(
         self, train_type: int | None = None, semesters: int | list[int] | None = None
     ):
-        res = self._get(
+        res = await self._get(
             "getGradeList",
             params={"trainTypeId": train_type, "semesterIds": semesters or ""},
         )
-        return GradeSheet(res.json()["semesters"])
+        return GradeSheet(res["semesters"])

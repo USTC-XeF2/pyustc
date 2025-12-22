@@ -1,5 +1,4 @@
 from enum import Enum
-from functools import cached_property
 from typing import Any, Self
 
 from .._singleton import singleton_by_key_meta
@@ -67,10 +66,9 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     def __init__(self, id: str, data: dict[str, Any] | None = None):
         self.id = id
         self.data: dict[str, Any] = {}
-        if data is None:
-            self.update()
-        else:
+        if data is not None:
             self.data.update(data)
+        self._children: list[Self] | None = None
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]):
@@ -83,15 +81,15 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         return SCFilter(name=name_or_filter)
 
     @classmethod
-    def _fetch(cls, filter: SCFilter, url: str, size: int):
+    async def _fetch(cls, filter: SCFilter, url: str, size: int):
         params = filter.generate_params()
-        for i in get_service().page_search(url, params, -1, size):
+        async for i in get_service().page_search(url, params, -1, size):
             sc = cls.from_dict(i)
             if filter.check(sc, only_strict=True):
                 yield sc
 
     @classmethod
-    def find(
+    async def find(
         cls,
         name_or_filter: str | SCFilter | None = None,
         apply_ended: bool = False,
@@ -111,10 +109,10 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         if not max:
             return
         filter = cls._get_filter(name_or_filter)
-        url = f"item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
-        for sc in cls._fetch(filter, url, size):
+        url = f"/item/scItem/{'endList' if apply_ended else 'enrolmentList'}"
+        async for sc in cls._fetch(filter, url, size):
             if expand_series and sc.is_series:
-                for i in sc.children:
+                for i in await sc.get_children():
                     if filter.check(i, only_strict=True) and (
                         apply_ended ^ (i.status == Status.APPLYING)
                     ):
@@ -129,7 +127,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
                 break
 
     @classmethod
-    def get_participated(
+    async def get_participated(
         cls,
         name_or_filter: str | SCFilter | None = None,
         max: int = -1,
@@ -140,8 +138,8 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         """
         if not max:
             return
-        for sc in cls._fetch(
-            cls._get_filter(name_or_filter), "item/scParticipateItem/list", size
+        async for sc in cls._fetch(
+            cls._get_filter(name_or_filter), "/item/scParticipateItem/list", size
         ):
             del sc.data["applyNum"]
             yield sc
@@ -178,10 +176,8 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         return self.data["validHour"]
 
     @property
-    def apply_num(self) -> int:
-        if "applyNum" not in self.data:
-            self.update()
-        return self.data["applyNum"]
+    def apply_num(self) -> int | None:
+        return self.data.get("applyNum")
 
     @property
     def apply_limit(self) -> int:
@@ -199,6 +195,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         return (
             self.status == Status.APPLYING
             and not self.applied
+            and self.apply_num is not None
             and self.apply_num < (self.apply_limit or 0)
         )
 
@@ -209,13 +206,13 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     @property
     def module(self):
         if "moduleName" not in self.data:
-            self.update()
+            return None
         return Module(self.data["module"], self.data["moduleName"])
 
     @property
     def department(self):
         if "businessDeptName" not in self.data:
-            self.update()
+            return None
         return Department(
             self.data["businessDeptId"], self.data["businessDeptName"], level=-1
         )
@@ -223,7 +220,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     @property
     def labels(self):
         if "lableNames" not in self.data:
-            self.update()
+            return None
         return [
             Label(i, j)
             for i, j in zip(self.data["itemLable"].split(","), self.data["lableNames"])
@@ -237,34 +234,41 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     def is_series(self) -> bool:
         return self.data["itemCategory"] == "1"
 
-    @cached_property
-    def children(self) -> list[Self]:
+    async def get_children(self) -> list[Self]:
         if not self.is_series:
             return []
-        url = "item/scItem/selectSignChirdItem"
+
+        if self._children is not None:
+            return self._children
+
+        url = "/item/scItem/selectSignChirdItem"
         params = {"id": self.id}
         try:
-            return [self.from_dict(i) for i in get_service().get_result(url, params)]
+            self._children = [
+                self.from_dict(i)
+                for i in await get_service().get_result(url, params=params)
+            ]
+            return self._children
         except RuntimeError as e:
             e.args = ("Failed to get children",)
             raise e
 
-    def update(self):
-        url = "item/scItem/queryById"
+    async def update(self):
+        url = "/item/scItem/queryById"
         params = {"id": self.id}
         try:
-            self.data.update(get_service().get_result(url, params))
+            self.data.update(await get_service().get_result(url, params=params))
         except RuntimeError as e:
             e.args = ("Failed to update",)
             raise e
 
-    def get_applicants(self, max: int = -1, size: int = 50):
-        url = "item/scItemRegistration/list"
+    async def get_applicants(self, max: int = -1, size: int = 50):
+        url = "/item/scItemRegistration/list"
         params = {"itemId": self.id}
-        for i in get_service().page_search(url, params, max, size):
+        async for i in get_service().page_search(url, params, max, size):
             yield str(i["username"])
 
-    def apply(
+    async def apply(
         self,
         force: bool = False,
         auto_cancel: bool = False,
@@ -280,8 +284,8 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         """
         if not (force or self.applyable):
             return False
-        url = f"mobile/item/enter/{self.id}"
-        data = get_service().request(
+        url = f"/mobile/item/enter/{self.id}"
+        data = await get_service().request(
             url,
             "post",
             json=(
@@ -291,17 +295,19 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         if data["success"]:
             return True
         if auto_cancel and "时间冲突" in data["message"]:
-            for i in SecondClass.get_participated(SCFilter(time_period=self.hold_time)):
-                i.cancel_apply()
-            return self.apply(force)
+            async for i in SecondClass.get_participated(
+                SCFilter(time_period=self.hold_time)
+            ):
+                await i.cancel_apply()
+            return await self.apply(force)
         raise RuntimeError(data["message"])
 
-    def cancel_apply(self) -> bool:
+    async def cancel_apply(self) -> bool:
         """
         Cancel the application.
         """
-        url = f"mobile/item/cancellRegistration/{self.id}"
-        data = get_service().request(url, "post")
+        url = f"/mobile/item/cancellRegistration/{self.id}"
+        data = await get_service().request(url, "post")
         if data["success"]:
             return True
         raise RuntimeError(data["message"])

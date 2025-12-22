@@ -53,9 +53,9 @@ class Tag(ABC):
         pass
 
     @classmethod
-    def get_available_tags(cls, **kwargs: Any):
+    async def get_available_tags(cls, **kwargs: Any):
         tags: list[Self] = []
-        for data in get_service().get_result(cls._get_url()):
+        for data in await get_service().get_result(cls._get_url()):
             tag = cls.from_dict(data)
             if all(getattr(tag, k) == v for k, v in kwargs.items()):
                 tags.append(tag)
@@ -105,9 +105,9 @@ class Department(Tag):
         return cls(data["id"], data["departName"], data.get("children"), level)
 
     @classmethod
-    def get_root_dept(cls):
+    async def get_root_dept(cls):
         if cls._root_dept is None:
-            cls._root_dept = cls.get_available_tags()[0]
+            cls._root_dept = (await cls.get_available_tags())[0]
         return cls._root_dept
 
     def find(self, name: str, max_level: int = -1) -> Generator[Department, None, None]:
@@ -200,9 +200,16 @@ class SCFilter:
         """
         if not only_strict and (
             (self.fuzzy_name and self.name.lower() not in sc.name.lower())
-            or (self.module and self.module.value != sc.module.value)
-            or (self.department and self.department.id != sc.department.id)
-            or (self.labels and not any(i in sc.labels for i in self.labels))
+            or (self.module and sc.module and self.module.value != sc.module.value)
+            or (
+                self.department
+                and sc.department
+                and self.department.id != sc.department.id
+            )
+            or (
+                self.labels
+                and not any(sc.labels and i in sc.labels for i in self.labels)
+            )
         ):
             return False
         if not self.fuzzy_name and self.name != sc.name:

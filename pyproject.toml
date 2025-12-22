@@ -10,8 +10,8 @@ requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.14",
     "fake-useragent>=2.2.0",
+    "httpx>=0.28.1",
     "pycryptodome>=3.23",
-    "requests>=2.32",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",

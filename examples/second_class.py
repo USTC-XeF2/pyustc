@@ -1,28 +1,28 @@
 from pyustc import CASClient, YouthService
 from pyustc.young import Department, Module, SCFilter, SecondClass
 
-client = CASClient()
-client.login_by_pwd()
 
-with YouthService(client):
+async def examples():
     # Get the list of second classes by name
-    sc = next(SecondClass.find("xxx"))
+    sc = await anext(SecondClass.find("xxx"))
 
     # Or get the list of second classes by filter
-    root_dept = Department.get_root_dept()
+    root_dept = await Department.get_root_dept()
     filter = SCFilter(
         name="xxx",
-        module=Module.get_available_tags(text="体")[0],
+        module=(await Module.get_available_tags(text="体"))[0],
         department=root_dept.find_one("跑步"),
     )
-    SecondClass.find(
-        filter,
-        apply_ended=False,
-        expand_series=True,  # Expand series to get all second classes in the series
+    await anext(
+        SecondClass.find(
+            filter,
+            apply_ended=False,
+            expand_series=True,  # Expand series to get all second classes in the series
+        )
     )
 
     # Get the list of second classes you have participated in
-    SecondClass.get_participated()
+    await anext(SecondClass.get_participated())
 
     print(
         sc.id,
@@ -45,12 +45,19 @@ with YouthService(client):
         sc.labels,
     )
     if sc.is_series:
-        print(sc.children)
+        print(await sc.get_children())
 
-    sc.update()  # Get the latest information of the second class
-    sc.get_applicants()  # Get the list of applicants
-    sc.apply(
+    await sc.update()  # Get the latest information of the second class
+    await anext(sc.get_applicants())  # Get the list of applicants
+    await sc.apply(
         force=True,  # Force apply even if the second class is not applyable
         auto_cancel=True,  # Auto cancel the application with time conflict
     )
-    sc.cancel_apply()
+    await sc.cancel_apply()
+
+
+async def main():
+    async with CASClient.login_by_pwd() as client:
+        async with YouthService() as service:
+            await service.login(client)
+            await examples()

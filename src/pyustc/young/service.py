@@ -2,37 +2,50 @@ import base64
 import contextvars
 import json
 import time
+from types import TracebackType
 from typing import Any
+from urllib.parse import urljoin
 
-import requests
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+from httpx import AsyncClient
 
-from .._url import generate_url
+from .._url import generate_url, root_url
 from ..cas import CASClient
 
 
 class YouthService:
-    def __init__(self, client: CASClient, retry: int = 3):
+    def __init__(self, retry: int = 3):
         self.retry = retry
-        self._session = requests.Session()
-        service_url = generate_url("young", "login/sc-wisdom-group-learning/")
-        data = self.request(
-            "cas/client/checkSsoLogin",
+        self._client = AsyncClient(base_url=root_url["young"], follow_redirects=True)
+
+    async def __aenter__(self):
+        await self._client.__aenter__()
+        self._token = _current_service.set(self)
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None = None,
+        exc_value: BaseException | None = None,
+        traceback: TracebackType | None = None,
+    ):
+        _current_service.reset(self._token)
+        await self._client.__aexit__(exc_type, exc_value, traceback)
+
+    async def login(self, client: CASClient):
+        service_url = generate_url("young", "/login/sc-wisdom-group-learning/")
+        data = await self.request(
+            "/cas/client/checkSsoLogin",
             "get",
-            {"ticket": client.get_ticket(service_url), "service": service_url},
+            params={"ticket": client.get_ticket(service_url), "service": service_url},
+            need_token=False,
         )
         if not data["success"]:
             raise RuntimeError(data["message"])
         self._access_token: str = data["result"]["token"]
-        self._session.headers.update({"X-Access-Token": self._access_token})
-
-    def __enter__(self):
-        self._token = _current_service.set(self)
+        self._client.headers.update({"X-Access-Token": self._access_token})
         return self
-
-    def __exit__(self, *_):
-        _current_service.reset(self._token)
 
     def _encrypt(self, data: dict[str, Any], timestamp: int):
         access_token = getattr(
@@ -46,29 +59,36 @@ class YouthService:
             cipher.encrypt(pad(json_string.encode(), AES.block_size))
         ).decode()
 
-    def request(
+    async def request(
         self,
         url: str,
         method: str,
+        *,
         params: dict[str, Any] | None = None,
         json: dict[str, Any] | None = None,
+        need_token: bool = True,
     ) -> dict[str, Any]:
+        if need_token and not hasattr(self, "_access_token"):
+            raise RuntimeError("Not logged in")
+
         timestamp = int(time.time() * 1000)
-        return self._session.request(
-            method,
-            generate_url("young", f"login/wisdom-group-learning-bg/{url}"),
-            params={
-                "requestParams": self._encrypt(params or {}, timestamp),
-                "_t": timestamp,
-            },
-            json={"requestParams": self._encrypt(json or {}, timestamp)},
+        return (
+            await self._client.request(
+                method,
+                urljoin("/login/wisdom-group-learning-bg", url),
+                params={
+                    "requestParams": self._encrypt(params or {}, timestamp),
+                    "_t": timestamp,
+                },
+                json={"requestParams": self._encrypt(json or {}, timestamp)},
+            )
         ).json()
 
-    def get_result(self, url: str, params: dict[str, Any] | None = None):
+    async def get_result(self, url: str, *, params: dict[str, Any] | None = None):
         error = RuntimeError("Max retry reached")
         for _ in range(self.retry):
             try:
-                data = self.request(url, "get", params)
+                data = await self.request(url, "get", params=params)
             except Exception as e:
                 error = e
                 continue
@@ -77,13 +97,13 @@ class YouthService:
             error = RuntimeError(data["message"])
         raise error
 
-    def page_search(self, url: str, params: dict[str, Any], max: int, size: int):
+    async def page_search(self, url: str, params: dict[str, Any], max: int, size: int):
         page = 1
         while max:
             new_params = params.copy()
             new_params["pageNo"] = page
             new_params["pageSize"] = size
-            result = self.get_result(url, new_params)
+            result = await self.get_result(url, params=new_params)
             for i in result["records"]:
                 yield i
                 max -= 1
@@ -102,5 +122,5 @@ def get_service():
         return _current_service.get()
     except LookupError:
         raise RuntimeError(
-            "Not in context, please use 'with YouthService(CASClient)' to create a context"
+            "Not in context, please use 'with YouthService()' to create a context"
         )
