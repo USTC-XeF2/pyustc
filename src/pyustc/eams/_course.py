@@ -1,4 +1,4 @@
-import datetime
+from datetime import datetime
 from typing import Any
 
 
@@ -23,7 +23,9 @@ class Teacher:
             data["teacherDegree"] and data["teacherDegree"]["nameZh"]
         )
         self.type: str | None = data["type"] and data["type"]["nameZh"]
-        self.department: str = data["department"]["simpleNameZh"]
+        self.department: str | None = (
+            data["department"] and data["department"]["simpleNameZh"]
+        )
 
     def __repr__(self):
         return self.name
@@ -37,8 +39,8 @@ class Course:
         self.weekday: int = data["weekday"]
         self.teachers = [Teacher(i) for i in data["teacherDeepVms"]]
         self.student_count: int = data["stdCount"]
-        self.start_time = datetime.datetime.strptime(data["startDate"], "%H:%M").time()
-        self.end_time = datetime.datetime.strptime(data["endDate"], "%H:%M").time()
+        self.start_time = datetime.strptime(data["startDate"], "%H:%M").time()
+        self.end_time = datetime.strptime(data["endDate"], "%H:%M").time()
         self.unit: tuple[int, int] = (data["startUnit"], data["endUnit"])
 
     def time(self, format: bool = True):

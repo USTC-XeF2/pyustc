@@ -1,6 +1,7 @@
-from typing import Literal
+import re
+from enum import StrEnum
+from typing import NamedTuple
 
-from bs4 import BeautifulSoup
 from fake_useragent import UserAgent
 from httpx import AsyncClient
 
@@ -13,7 +14,28 @@ from .select import CourseSelectionSystem
 
 _ua = UserAgent(platforms="desktop")
 
-Semester = tuple[int, Literal["春", "夏", "秋"]] | Literal["now"]
+
+class Season(StrEnum):
+    SPRING = "春"
+    SUMMER = "夏"
+    AUTUMN = "秋"
+
+    @classmethod
+    def from_text(cls, text: str):
+        for member in cls:
+            if text.startswith(member.value):
+                return member
+        return None
+
+
+class Semester(NamedTuple):
+    year: int
+    season: Season
+
+
+class Turn(NamedTuple):
+    id: int
+    name: str
 
 
 class EAMSClient:
@@ -21,6 +43,7 @@ class EAMSClient:
         self._client = client
         self._student_id: int = 0
         self._semesters: dict[Semester, int] = {}
+        self._current_semester: int = 0
 
     @classmethod
     async def create(cls, cas_client: CASClient, user_agent: str | None = None):
@@ -37,26 +60,39 @@ class EAMSClient:
 
         return cls(client)
 
-    async def _get_student_id_and_semesters(self):
+    async def __aenter__(self):
+        res = await self._client.get("/for-std/course-table")
+        student_id = res.url.path.split("/")[-1]
+        if not student_id.isdigit():
+            raise RuntimeError("Failed to get student id")
+        self._student_id = int(student_id)
+
+        matches = re.finditer(
+            r'<option([^>]*)value="(\d+)"[^>]*>(\d+)年(.*?)学期', res.text
+        )
+        for match in matches:
+            full_attr = match.group(1)
+            value = int(match.group(2))
+            year = int(match.group(3))
+            season = Season.from_text(match.group(4))
+            if not season:
+                continue
+            self._semesters[Semester(year, season)] = value
+            if "selected" in full_attr:
+                self._current_semester = value
+
+        return self
+
+    async def __aexit__(self, *_):
+        await self._client.aclose()
+
+    def _get_student_id_and_semesters(self):
         if not (self._student_id and self._semesters):
-            res = await self._client.get("/for-std/course-table")
-            student_id = res.url.path.split("/")[-1]
-            if not student_id.isdigit():
-                raise RuntimeError("Failed to get student id")
-            self._student_id = int(student_id)
-            if not self._semesters:
-                self._set_semesters(res.text)
+            raise RuntimeError(
+                "EAMSClient is not initialized. Use `async with` to initialize it."
+            )
 
         return self._student_id, self._semesters
-
-    def _set_semesters(self, html: str):
-        soup = BeautifulSoup(html, "html.parser")
-        for option in soup.select("#allSemesters > option"):
-            value = int(str(option["value"]))
-            year, season = option.text.split("年")
-            self._semesters[(int(year), season[0])] = value
-            if "selected" in option.attrs:
-                self._semesters["now"] = value
 
     async def get_current_teach_week(self) -> int:
         """
@@ -66,13 +102,14 @@ class EAMSClient:
         return res.json()["weekIndex"]
 
     async def get_course_table(
-        self, week: int | None = None, semester: Semester = "now"
+        self, week: int | None = None, semester: Semester | None = None
     ):
         """
         Get the course table for the specified week and semester.
         """
-        student_id, semesters = await self._get_student_id_and_semesters()
-        url = f"/for-std/course-table/semester/{semesters[semester]}/print-data/{student_id}"
+        student_id, semesters = self._get_student_id_and_semesters()
+        semester_id = semesters[semester] if semester else self._current_semester
+        url = f"/for-std/course-table/semester/{semester_id}/print-data/{student_id}"
         params = {"weekIndex": week or ""}
         res = await self._client.get(url, params=params)
         return CourseTable(res.json()["studentTableVm"], week)
@@ -80,23 +117,24 @@ class EAMSClient:
     def get_grade_manager(self):
         return GradeManager(self._client)
 
-    async def get_open_turns(self) -> dict[int, str]:
+    async def get_open_turns(self):
         """
         Get the open turns for course selection.
         """
-        student_id, _ = await self._get_student_id_and_semesters()
+        student_id, _ = self._get_student_id_and_semesters()
         res = await self._client.post(
             "/ws/for-std/course-select/open-turns",
             data={"bizTypeId": 2, "studentId": student_id},
         )
-        return {i["id"]: i["name"] for i in res.json()}
+        return [Turn(i["id"], i["name"]) for i in res.json()]
 
-    async def get_course_selection_system(self, turn_id: int):
-        student_id, _ = await self._get_student_id_and_semesters()
-        return CourseSelectionSystem(turn_id, student_id, self._client)
+    def get_course_selection_system(self, turn: Turn):
+        student_id, _ = self._get_student_id_and_semesters()
+        return CourseSelectionSystem(turn.id, student_id, self._client)
 
-    async def get_course_adjustment_system(self, turn_id: int, semester: Semester):
-        student_id, semesters = await self._get_student_id_and_semesters()
-        return CourseAdjustmentSystem(
-            turn_id, semesters[semester], student_id, self._client
-        )
+    def get_course_adjustment_system(
+        self, turn: Turn, semester: Semester | None = None
+    ):
+        student_id, semesters = self._get_student_id_and_semesters()
+        semester_id = semesters[semester] if semester else self._current_semester
+        return CourseAdjustmentSystem(turn.id, semester_id, student_id, self._client)

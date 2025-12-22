@@ -113,13 +113,15 @@ async def main():
     async with CASClient.login_by_pwd() as cas_client:
         eams_client = await EAMSClient.create(cas_client)
 
-    turn = (await eams_client.get_open_turns()).popitem()
-    print(f"Begin course selection for turn {turn[1]}")
-    cs = await eams_client.get_course_selection_system(turn[0])
+    async with eams_client as client:
+        turn = (await client.get_open_turns())[0]
+        print(f"Begin course selection for turn {turn.name}")
+        cs = client.get_course_selection_system(turn)
 
-    lesson_pairs: dict[str, list[str]] = {}
-    async for code in select_courses(cs, lesson_pairs):
-        print(code)
+        lesson_pairs: dict[str, list[str]] = {}
+        async for code in select_courses(cs, lesson_pairs):
+            print(code)
+
     print("Course selection completed")
 
 

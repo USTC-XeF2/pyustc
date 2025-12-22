@@ -1,15 +1,12 @@
 from pyustc import CASClient, EAMSClient
 
 
-async def main():
-    async with CASClient.login_by_pwd() as cas_client:
-        client = await EAMSClient.create(cas_client)
-
+async def example(client: EAMSClient):
     # Get current teaching week
     week = await client.get_current_teach_week()
 
     # Get the course table
-    table = await client.get_course_table(week=week, semester="now")
+    table = await client.get_course_table(week=week, semester=None)
     print(
         table.std_name,
         table.std_id,
@@ -40,3 +37,11 @@ async def main():
     print(
         course.time(format=True),
     )  # a string if `format` is True, otherwise a tuple of time objects
+
+
+async def main():
+    async with CASClient.login_by_pwd() as cas_client:
+        eams_client = await EAMSClient.create(cas_client)
+
+    async with eams_client as client:
+        await example(client)

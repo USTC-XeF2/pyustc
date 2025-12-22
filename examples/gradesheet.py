@@ -1,10 +1,7 @@
 from pyustc import CASClient, EAMSClient
 
 
-async def main():
-    async with CASClient.login_by_pwd() as cas_client:
-        client = await EAMSClient.create(cas_client)
-
+async def example(client: EAMSClient):
     # Get the grade manager
     gm = client.get_grade_manager()
     print(await gm.get_train_types(), await gm.get_semesters())
@@ -27,3 +24,11 @@ async def main():
             course.passed,
             course.abandoned,  # True if the course is abandoned (not counted in GPA and credits)
         )
+
+
+async def main():
+    async with CASClient.login_by_pwd() as cas_client:
+        eams_client = await EAMSClient.create(cas_client)
+
+    async with eams_client as client:
+        await example(client)

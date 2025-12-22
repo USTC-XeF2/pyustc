@@ -1,16 +1,13 @@
 from pyustc import CASClient, EAMSClient
 
 
-async def main():
-    async with CASClient.login_by_pwd() as cas_client:
-        client = await EAMSClient.create(cas_client)
-
+async def example(client: EAMSClient):
     # Get open turns
     open_turns = await client.get_open_turns()
     print(open_turns)
 
     # Get the course selection system
-    cs = await client.get_course_selection_system(open_turns.popitem()[0])
+    cs = client.get_course_selection_system(open_turns[0])
 
     lesson = await cs.get_lesson("MATH1007.01")
     if lesson:
@@ -41,3 +38,11 @@ async def main():
 
         # Drop the lesson
         print(await cs.drop(lesson))
+
+
+async def main():
+    async with CASClient.login_by_pwd() as cas_client:
+        eams_client = await EAMSClient.create(cas_client)
+
+    async with eams_client as client:
+        await example(client)
