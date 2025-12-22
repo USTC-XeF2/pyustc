@@ -13,7 +13,7 @@ A Python package that allows for quick use of USTC network services.
 - **Educational Administration Management System**: Access course table, grades, and course planning tools.
 - **Young Platform**: Manage Second Classes.
 
-## Installation
+## Installation and Usage
 
 Install PyUSTC via pip:
 
@@ -21,18 +21,7 @@ Install PyUSTC via pip:
 pip install pyustc
 ```
 
-## Quick Start
-
-Here's an example of logging in via the CAS for USTC:
-
-```python
-from pyustc import CASClient
-
-client = CASClient()
-client.login_by_pwd('username', 'password')
-```
-
-For more examples and detailed documentation, see [Examples](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
+For examples and detailed documentation, see [Examples](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
 
 ## Contributing
 
