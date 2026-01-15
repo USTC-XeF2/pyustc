@@ -10,8 +10,8 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from httpx import AsyncClient
 
-from .._url import generate_url, root_url
-from ..cas import CASClient
+from pyustc._url import generate_url, root_url
+from pyustc.cas import CASClient
 
 
 class YouthService:
@@ -123,4 +123,4 @@ def get_service():
     except LookupError:
         raise RuntimeError(
             "Not in context, please use 'with YouthService()' to create a context"
-        )
+        ) from None

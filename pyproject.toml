@@ -35,7 +35,7 @@ dev = [
 Homepage = "https://github.com/USTC-XeF2/pyustc"
 Issues = "https://github.com/USTC-XeF2/pyustc/issues"
 
-[tool.ruff]
+[tool.ruff.lint]
 select = [
     "F",
     "E",
@@ -44,7 +44,12 @@ select = [
     "UP",
     "N",
     "PL",
+    "B",
+    "SIM",
     "PERF",
+    "ASYNC",
+    "C4",
+    "TID",
     "RUF",
 ]
 ignore = ["E501"]

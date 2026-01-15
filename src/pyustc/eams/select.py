@@ -3,7 +3,7 @@ from typing import Any
 
 from httpx import AsyncClient
 
-from .._singleton import singleton_by_field_meta
+from pyustc._singleton import singleton_by_field_meta
 
 
 class Course(metaclass=singleton_by_field_meta("id")):

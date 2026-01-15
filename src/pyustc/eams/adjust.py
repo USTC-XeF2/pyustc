@@ -1,4 +1,4 @@
-import time
+import asyncio
 from typing import Any
 
 from httpx import AsyncClient
@@ -32,7 +32,14 @@ class CourseAdjustmentSystem:
             await self._client.post("for-std/course-adjustment-apply/" + url, **kwargs)
         ).json()
 
-    async def change_class(self, lesson: Lesson, new_lesson: Lesson, reason: str):
+    async def change_class(
+        self,
+        lesson: Lesson,
+        new_lesson: Lesson,
+        reason: str,
+        retry: int = 3,
+        sleep: float = 1.0,
+    ):
         data = {
             "studentAssoc": self.student_id,
             "semesterAssoc": self.semester_id,
@@ -62,11 +69,11 @@ class CourseAdjustmentSystem:
             )
         elif res["saveApply"]:
             return AddDropResponse("change-class", {"success": True})
-        for _ in range(3):
+        for _ in range(retry):
             r = await self._get(
                 "add-drop-response",
                 data={"studentId": self.student_id, "requestId": res["requestId"]},
             )
             if r:
                 return AddDropResponse("change-class", r)
-            time.sleep(1)
+            await asyncio.sleep(sleep)

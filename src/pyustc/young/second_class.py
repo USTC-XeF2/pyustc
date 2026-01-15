@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Any, Self
 
-from .._singleton import singleton_by_key_meta
+from pyustc._singleton import singleton_by_key_meta
+
 from ._user import User
 from .filter import Department, Label, Module, SCFilter, TimePeriod
 from .service import get_service
@@ -48,9 +49,9 @@ class SignInfo:
         self.remarks = remarks
 
     @classmethod
-    def get_self(cls):
-        user = User.get()
-        return cls(user.college or "", user.classes, user.phone or "")
+    async def get_self(cls):
+        user = await User.get()
+        return cls(user.college or "", user.classes, await user.get_phone() or "")
 
     def json(self):
         return {
@@ -221,10 +222,9 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
     def labels(self):
         if "lableNames" not in self.data:
             return None
-        return [
-            Label(i, j)
-            for i, j in zip(self.data["itemLable"].split(","), self.data["lableNames"])
-        ]
+        return list(
+            map(Label, self.data["itemLable"].split(","), self.data["lableNames"])
+        )
 
     @property
     def conceive(self) -> str:
@@ -289,7 +289,9 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
             url,
             "post",
             json=(
-                (sign_info or SignInfo.get_self()).json() if self.need_sign_info else {}
+                (sign_info or await SignInfo.get_self()).json()
+                if self.need_sign_info
+                else {}
             ),
         )
         if data["success"]:

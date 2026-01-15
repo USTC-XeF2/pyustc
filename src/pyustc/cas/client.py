@@ -10,7 +10,8 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
 from httpx import AsyncClient
 
-from .._url import root_url
+from pyustc._url import root_url
+
 from .info import UserInfo
 
 AsyncTokenSetter = Callable[[AsyncClient], Awaitable[bool]]

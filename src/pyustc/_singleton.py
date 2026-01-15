@@ -22,7 +22,7 @@ def singleton_by_key_meta(key_func: Callable[..., T]):
             try:
                 cache_key = cls._key_func(*args, **kwargs)
             except Exception as e:
-                raise ValueError(f"Key function failed for {cls.__name__}: {e}")
+                raise ValueError(f"Key function failed for {cls.__name__}: {e}") from e
 
             if cache_key not in cls._instance_cache:
                 instance = super().__call__(*args, **kwargs)

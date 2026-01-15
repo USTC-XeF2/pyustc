@@ -5,8 +5,9 @@ from typing import NamedTuple
 from fake_useragent import UserAgent
 from httpx import AsyncClient
 
-from .._url import generate_url, root_url
-from ..cas import CASClient
+from pyustc._url import generate_url, root_url
+from pyustc.cas import CASClient
+
 from ._course import CourseTable
 from ._grade import GradeManager
 from .adjust import CourseAdjustmentSystem
