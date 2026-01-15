@@ -1,4 +1,4 @@
-# Copyright (c) 2025 XeF2
+# Copyright (c) 2026 XeF2
 
 __author__ = "XeF2"
 __version__ = "1.0.0"

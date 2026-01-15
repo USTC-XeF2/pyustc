@@ -8,9 +8,9 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "fake-useragent>=2.2.0",
-    "httpx>=0.28.1",
-    "pycryptodome>=3.23",
+    "fake-useragent>=2.2.0,<3",
+    "httpx>=0.28.1,<0.29",
+    "pycryptodome>=3.23.0,<4",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -27,8 +27,8 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
-    "pytest>=9.0.1",
-    "ruff>=0.14.6",
+    "pytest>=9.0.2",
+    "ruff>=0.14.11",
 ]
 
 [project.urls]
