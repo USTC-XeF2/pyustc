@@ -1,4 +1,5 @@
 import asyncio
+from itertools import cycle
 from typing import Any
 
 from httpx import AsyncClient
@@ -8,12 +9,16 @@ from .select import AddDropResponse, Lesson
 
 class CourseAdjustmentSystem:
     def __init__(
-        self, turn_id: int, semester_id: int, student_id: int, client: AsyncClient
+        self,
+        turn_id: int,
+        semester_id: int,
+        student_id: int,
+        client_pool: cycle[AsyncClient],
     ):
         self._turn_id = turn_id
         self._semester_id = semester_id
         self._student_id = student_id
-        self._client = client
+        self._client_pool = client_pool
 
     @property
     def turn_id(self):
@@ -29,7 +34,9 @@ class CourseAdjustmentSystem:
 
     async def _get(self, url: str, **kwargs: Any):
         return (
-            await self._client.post("for-std/course-adjustment-apply/" + url, **kwargs)
+            await next(self._client_pool).post(
+                "for-std/course-adjustment-apply/" + url, **kwargs
+            )
         ).json()
 
     async def change_class(

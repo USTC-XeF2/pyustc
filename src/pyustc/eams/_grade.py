@@ -1,3 +1,4 @@
+from itertools import cycle
 from typing import Any
 
 from httpx import AsyncClient
@@ -82,12 +83,14 @@ class GradeSheet:
 
 
 class GradeManager:
-    async def __init__(self, client: AsyncClient):
-        self._client = client
+    async def __init__(self, client_pool: cycle[AsyncClient]):
+        self._client_pool = client_pool
 
     async def _get(self, url: str, params: dict[str, Any] | None = None):
         return (
-            await self._client.get("/for-std/grade/sheet/" + url, params=params)
+            await next(self._client_pool).get(
+                "/for-std/grade/sheet/" + url, params=params
+            )
         ).json()
 
     async def get_train_types(self):

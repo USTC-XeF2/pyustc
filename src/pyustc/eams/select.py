@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+from itertools import cycle
 from typing import Any
 
 from httpx import AsyncClient
@@ -51,10 +52,10 @@ class AddDropResponse:
 
 
 class CourseSelectionSystem:
-    def __init__(self, turn_id: int, student_id: int, client: AsyncClient):
+    def __init__(self, turn_id: int, student_id: int, client_pool: cycle[AsyncClient]):
         self._turn_id = turn_id
         self._student_id = student_id
-        self._client = client
+        self._client_pool = client_pool
         self._addable_lessons: list[Lesson] | None = None
 
     @property
@@ -69,7 +70,9 @@ class CourseSelectionSystem:
         if not data:
             data = {"turnId": self.turn_id, "studentId": self.student_id}
         return (
-            await self._client.post("/ws/for-std/course-select/" + url, data=data)
+            await next(self._client_pool).post(
+                "/ws/for-std/course-select/" + url, data=data
+            )
         ).json()
 
     async def get_addable_lessons(self):
@@ -129,7 +132,7 @@ class CourseSelectionSystem:
             "lessonAssoc": lesson.id,
         }
         request_id = (
-            await self._client.post(
+            await next(self._client_pool).post(
                 f"/ws/for-std/course-select/{type}-request", data=data
             )
         ).text

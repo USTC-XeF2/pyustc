@@ -1,5 +1,7 @@
+import asyncio
 import re
 from enum import StrEnum
+from itertools import cycle
 from typing import NamedTuple
 
 from fake_useragent import UserAgent
@@ -33,33 +35,71 @@ class Semester(NamedTuple):
     year: int
     season: Season
 
+    @classmethod
+    def from_text(cls, text: str):
+        match = re.match(r"(\d{4})年(.)季学期", text)
+        if match:
+            year = int(match.group(1))
+            season = Season.from_text(match.group(2))
+            if season:
+                return cls(year, season)
+        raise ValueError(f"Invalid semester text: {text}")
+
 
 class Turn(NamedTuple):
     id: int
     name: str
+    semester: Semester
 
 
 class EAMSClient:
-    def __init__(self, client: AsyncClient):
-        self._client = client
+    def __init__(self, clients: list[AsyncClient]):
+        if len(clients) == 0:
+            raise ValueError("At least one client is required")
+
+        self._clients = clients
+        self._client_pool = cycle(clients)
         self._student_id: int = 0
         self._semesters: dict[Semester, int] = {}
         self._current_semester: int = 0
 
     @classmethod
-    async def create(cls, cas_client: CASClient, user_agent: str | None = None):
-        client = AsyncClient(
-            base_url=root_url["eams"],
-            follow_redirects=True,
-            headers={"User-Agent": user_agent or _ua.random},
-        )
+    async def create(
+        cls, cas_client: CASClient, client_count: int = 1, user_agent: str | None = None
+    ):
+        """Create an EAMSClient instance by logging in through the provided CASClient.
 
-        ticket = await cas_client.get_ticket(generate_url("eams", "/ucas-sso/login"))
-        res = await client.get("/ucas-sso/login", params={"ticket": ticket})
-        if not res.url.path.endswith("home"):
-            raise RuntimeError("Failed to login")
+        :param cas_client: The CASClient instance to use for authentication.
+        :type cas_client: CASClient
+        :param client_count: Number of client instances to create in the pool.
+        :type client_count: int
+        :param user_agent: User-Agent string to use for the clients. If None, a random one will be used.
+        :type user_agent: str | None
+        """
+        clients = [
+            AsyncClient(
+                base_url=root_url["eams"],
+                follow_redirects=True,
+                headers={"User-Agent": user_agent or _ua.random},
+            )
+            for _ in range(client_count)
+        ]
 
-        return cls(client)
+        async def login_client(c: AsyncClient):
+            ticket = await cas_client.get_ticket(
+                generate_url("eams", "/ucas-sso/login")
+            )
+            res = await c.get("/ucas-sso/login", params={"ticket": ticket})
+            if not res.url.path.endswith("home"):
+                raise RuntimeError("Failed to login")
+
+        await asyncio.gather(*(login_client(client) for client in clients))
+
+        return cls(clients)
+
+    @property
+    def _client(self):
+        return next(self._client_pool)
 
     async def __aenter__(self):
         res = await self._client.get("/for-std/course-table")
@@ -69,23 +109,20 @@ class EAMSClient:
         self._student_id = int(student_id)
 
         matches = re.finditer(
-            r'<option([^>]*)value="(\d+)"[^>]*>(\d+)年(.*?)学期', res.text
+            r'<option([^>]*)value="(\d+)"[^>]*>(.+)</option>', res.text
         )
         for match in matches:
             full_attr = match.group(1)
             value = int(match.group(2))
-            year = int(match.group(3))
-            season = Season.from_text(match.group(4))
-            if not season:
-                continue
-            self._semesters[Semester(year, season)] = value
+            semester = Semester.from_text(match.group(3))
+            self._semesters[semester] = value
             if "selected" in full_attr:
                 self._current_semester = value
 
         return self
 
     async def __aexit__(self, *_):
-        await self._client.aclose()
+        await asyncio.gather(*(c.aclose() for c in self._clients))
 
     def _get_student_id_and_semesters(self):
         if not (self._student_id and self._semesters):
@@ -96,18 +133,14 @@ class EAMSClient:
         return self._student_id, self._semesters
 
     async def get_current_teach_week(self) -> int:
-        """
-        Get the current teaching week.
-        """
+        """Get the current teaching week."""
         res = await self._client.get("/home/get-current-teach-week")
         return res.json()["weekIndex"]
 
     async def get_course_table(
         self, week: int | None = None, semester: Semester | None = None
     ):
-        """
-        Get the course table for the specified week and semester.
-        """
+        """Get the course table for the specified week and semester."""
         student_id, semesters = self._get_student_id_and_semesters()
         semester_id = semesters[semester] if semester else self._current_semester
         url = f"/for-std/course-table/semester/{semester_id}/print-data/{student_id}"
@@ -116,26 +149,38 @@ class EAMSClient:
         return CourseTable(res.json()["studentTableVm"], week)
 
     def get_grade_manager(self):
-        return GradeManager(self._client)
+        """Get the grade manager."""
+        return GradeManager(self._client_pool)
 
     async def get_open_turns(self):
-        """
-        Get the open turns for course selection.
-        """
+        """Get the list of open course selection turns."""
         student_id, _ = self._get_student_id_and_semesters()
         res = await self._client.post(
             "/ws/for-std/course-select/open-turns",
             data={"bizTypeId": 2, "studentId": student_id},
         )
-        return [Turn(i["id"], i["name"]) for i in res.json()]
+        return [
+            Turn(i["id"], i["name"], Semester.from_text(i["semesterName"]))
+            for i in res.json()
+        ]
 
     def get_course_selection_system(self, turn: Turn):
-        student_id, _ = self._get_student_id_and_semesters()
-        return CourseSelectionSystem(turn.id, student_id, self._client)
+        """Get the course selection system for the specified turn.
 
-    def get_course_adjustment_system(
-        self, turn: Turn, semester: Semester | None = None
-    ):
+        :param turn: Course selection turn.
+        :type turn: Turn
+        """
+        student_id, _ = self._get_student_id_and_semesters()
+        return CourseSelectionSystem(turn.id, student_id, self._client_pool)
+
+    def get_course_adjustment_system(self, turn: Turn):
+        """Get the course adjustment system for the specified turn.
+
+        :param turn: Course selection turn.
+        :type turn: Turn
+        """
         student_id, semesters = self._get_student_id_and_semesters()
-        semester_id = semesters[semester] if semester else self._current_semester
-        return CourseAdjustmentSystem(turn.id, semester_id, student_id, self._client)
+        semester_id = semesters[turn.semester]
+        return CourseAdjustmentSystem(
+            turn.id, semester_id, student_id, self._client_pool
+        )
