@@ -126,6 +126,7 @@ class CASClient:
 
             res = await client.get("/cas/login")
             if not res.is_redirect:
+                client.cookies.delete("SOURCEID_TGC", domain=token.get("domain"))
                 return await cls._set_token_by_pwd(client)
             return False
 
