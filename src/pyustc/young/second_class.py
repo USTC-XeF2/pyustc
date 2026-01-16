@@ -98,14 +98,14 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         max: int = -1,
         size: int = 20,
     ):
-        """
-        Find the second class that meets the conditions.
+        """Find the second class that meets the conditions.
 
-        Arguments:
-            name: The name of the second class. If `filter.name` is set, this argument will be ignored.
-            filter: The filter for the second class, which will be used for both the series and the children.
-            apply_ended: Whether to show the second class that has ended or not.
-            expand_series: Whether to expand the series to get all second classes in the series.
+        :param name_or_filter: The name or the filter for the second class. Filter will be used for both the series and the children.
+        :type name_or_filter: str | SCFilter | None
+        :param apply_ended: Whether to show the second class that has ended or not.
+        :type apply_ended: bool
+        :param expand_series: Whether to expand the series to get all second classes in the series.
+        :type expand_series: bool
         """
         if not max:
             return
@@ -134,9 +134,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         max: int = -1,
         size: int = 20,
     ):
-        """
-        Get the specific second class list that the user has participated in.
-        """
+        """Get the specific second class list that the user has participated in."""
         if not max:
             return
         async for sc in cls._fetch(
@@ -190,9 +188,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
 
     @property
     def applyable(self):
-        """
-        This method will check the status and the number of applicants.
-        """
+        """Check whether the second class is applyable based on its status and number of applicants."""
         return (
             self.status == Status.APPLYING
             and not self.applied
@@ -274,13 +270,14 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         auto_cancel: bool = False,
         sign_info: SignInfo | None = None,
     ) -> bool:
-        """
-        Apply for this second class.
+        """Apply for this second class.
 
-        Arguments:
-            force: Whether to force apply even if the second class is not applyable.
-            auto_cancel: Whether to cancel the application with time conflict and apply again.
-            sign_info: The sign info for the second class. If `need_sign_info` is False, this argument will be ignored.
+        :param force: Whether to force apply even if the second class is not applyable.
+        :type force: bool
+        :param auto_cancel: Whether to cancel the application with time conflict and apply again.
+        :type auto_cancel: bool
+        :param sign_info: The sign info for the second class. If `need_sign_info` is False, this argument will be ignored.
+        :type sign_info: SignInfo | None
         """
         if not (force or self.applyable):
             return False
@@ -305,9 +302,7 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
         raise RuntimeError(data["message"])
 
     async def cancel_apply(self) -> bool:
-        """
-        Cancel the application.
-        """
+        """Cancel the application."""
         url = f"/mobile/item/cancellRegistration/{self.id}"
         data = await get_service().request(url, "post")
         if data["success"]:

@@ -72,9 +72,7 @@ class CourseTable:
         unit: int | None = None,
         place: Place | str | None = None,
     ):
-        """
-        Get courses that meet the conditions.
-        """
+        """Get courses that meet the conditions."""
         courses: list[Course] = []
         for i in self.courses:
             if weekday and i.weekday != weekday:

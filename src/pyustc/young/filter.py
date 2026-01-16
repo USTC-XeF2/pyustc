@@ -111,12 +111,12 @@ class Department(Tag):
         return cls._root_dept
 
     def find(self, name: str, max_level: int = -1) -> Generator[Department, None, None]:
-        """
-        Find children departments with the given name.
+        """Find children departments with the given name.
 
-        Arguments:
-            name: The name of the department.
-            max_level: The maximum level of the department. `-1` means no limit.
+        :param name: The name of the department.
+        :type name: str
+        :param max_level: The maximum level of the department. `-1` means no limit.
+        :type max_level: int
         """
         if max_level != -1 and self.level > max_level:
             return
@@ -150,9 +150,7 @@ class Label(Tag):
 
 
 class SCFilter:
-    """
-    The filter for the second class.
-    """
+    """The filter for the second class."""
 
     def __init__(  # noqa: PLR0913
         self,
@@ -164,10 +162,12 @@ class SCFilter:
         fuzzy_name: bool = True,
         strict_time: bool = False,
     ):
-        """
-        Arguments:
-            fuzzy_name: Whether to use fuzzy matching for the name.
-            strict_time: Whether to check if the hold time of the second class is strictly within the time period.
+        """Initialize the filter.
+
+        :param fuzzy_name: Whether to use fuzzy matching for the name.
+        :type fuzzy_name: bool
+        :param strict_time: Whether to check if the hold time of the second class is strictly within the time period.
+        :type strict_time: bool
         """
         self.name = name or ""
         self.time_period = time_period
@@ -195,9 +195,7 @@ class SCFilter:
         return params
 
     def check(self, sc: SecondClass, only_strict: bool = False) -> bool:
-        """
-        Check if the second lesson meets the requirements.
-        """
+        """Check if the second lesson meets the requirements."""
         if not only_strict and (
             (self.fuzzy_name and self.name.lower() not in sc.name.lower())
             or (self.module and sc.module and self.module.value != sc.module.value)

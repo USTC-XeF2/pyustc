@@ -5,13 +5,6 @@ T = TypeVar("T", bound=Hashable)
 
 
 def singleton_by_key_meta(key_func: Callable[..., T]):
-    """
-    Create a singleton metaclass that caches instances based on a key function.
-
-    Arguments:
-        key_func: A function that takes *args and **kwargs and returns a key for caching.
-    """
-
     class SingletonMeta(type):
         def __init__(cls, *args: Any, **kwargs: Any):
             cls._instance_cache: dict[T, Any] = {}
@@ -34,13 +27,6 @@ def singleton_by_key_meta(key_func: Callable[..., T]):
 
 
 def singleton_by_field_meta(data_field: str):
-    """
-    Create a singleton metaclass that caches instances based on a specific field in the data.
-
-    Arguments:
-        data_field: The data field to use for caching.
-    """
-
     def key_func(data: dict[str, Any], *args: Any, **kwargs: Any):
         return data[data_field]
 

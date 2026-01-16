@@ -1,5 +1,4 @@
 import asyncio
-import time
 
 from pyustc import CASClient, EAMSClient
 from pyustc.eams.select import CourseSelectionSystem, Lesson
@@ -8,11 +7,10 @@ from pyustc.eams.select import CourseSelectionSystem, Lesson
 async def try_select_lesson(
     cs: CourseSelectionSystem, new_lesson: Lesson, old_lessons: list[Lesson]
 ) -> bool:
-    """
-    Try to select a new lesson by dropping old conflicting lessons.
+    """Try to select a new lesson by dropping old conflicting lessons.
 
-    Returns:
-        True if the lesson was successfully selected, False otherwise.
+    :return: True if the lesson was successfully selected, False otherwise.
+    :rtype: bool
     """
     dropped_old_lessons: list[Lesson] = []
     drop_success = True
@@ -48,20 +46,20 @@ async def select_courses(
     count_refresh_interval: float = 0.3,
     lesson_refresh_frequency: int = 5,
 ):
-    """
-    Automatically select courses based on the lesson code.
+    """Automatically select courses based on the lesson code.
 
-    Arguments:
-        cs: `CourseSelectionSystem` - Course selection system instance
-        lesson_pairs: `dict[str, list[str]]` - Dictionary of lesson codes
-
-            *Key*: Target new lesson code
-
-            *Value*: List of currently selected conflicting lesson codes that will be dropped
-        count_refresh_interval: `float` - Interval to refresh the student counts
-        lesson_refresh_frequency: `int` - Frequency to refresh the addable lessons based on the number of iterations
-    Yields:
-        The lesson codes of successfully selected courses.
+    :param cs: Course selection system instance.
+    :type cs: CourseSelectionSystem
+    :param lesson_pairs: Dictionary of lesson codes,
+        where the key is the target new lesson code
+        and the value is a list of currently selected conflicting lesson codes that will be dropped.
+    :type lesson_pairs: dict[str, list[str]]
+    :param count_refresh_interval: Interval to refresh the student counts.
+    :type count_refresh_interval: float
+    :param lesson_refresh_frequency: Frequency to refresh the addable lessons based on the number of iterations.
+    :type lesson_refresh_frequency: int
+    :return: Yields the lesson codes of successfully selected courses.
+    :rtype: Generator[str, Any, None]
     """
     selected_lessons = await cs.get_selected_lessons()
     lessons: dict[Lesson, list[Lesson]] = {}
@@ -101,12 +99,12 @@ async def select_courses(
         # Execute all tasks concurrently
         if tasks:
             results = await asyncio.gather(*tasks)
-            for new_lesson, success in zip(task_lessons, results):
+            for new_lesson, success in zip(task_lessons, results, strict=True):
                 if success:
                     lessons.pop(new_lesson)
                     yield new_lesson.code
 
-        time.sleep(count_refresh_interval)
+        await asyncio.sleep(count_refresh_interval)
 
 
 async def main():

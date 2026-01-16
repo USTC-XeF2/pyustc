@@ -18,9 +18,7 @@ AsyncTokenSetter = Callable[[AsyncClient], Awaitable[bool]]
 
 
 class CASClient:
-    """
-    The Central Authentication Service (CAS) client for USTC.
-    """
+    """The Central Authentication Service (CAS) client for USTC."""
 
     def __init__(
         self, token_setter: AsyncTokenSetter | None = None, base_url: str | None = None
@@ -96,23 +94,23 @@ class CASClient:
 
     @classmethod
     def login_by_pwd(cls, username: str | None = None, password: str | None = None):
-        """
-        Login to the system using username and password directly.
+        """Login to the system using username and password directly.
 
-        Arguments:
-            username: The username to login. If not set, will use the environment variable `USTC_CAS_USR`.
-            password: The password to login. If not set, will use the environment variable `USTC_CAS_PWD`.
+        :param username: The username to login. If not set, will use the environment variable `USTC_CAS_USR`.
+        :type username: str | None
+        :param password: The password to login. If not set, will use the environment variable `USTC_CAS_PWD`.
+        :type password: str | None
         """
         return cls(lambda client: cls._set_token_by_pwd(client, username, password))
 
     @classmethod
     def load_token(cls, path: str, fallback_to_pwd: bool = True):
-        """
-        Load the token from the file and create a CASClient instance.
+        """Load the token from the file and create a CASClient instance.
 
-        Arguments:
-            path: The path to the token file.
-            fallback_to_pwd: Whether to fallback to username/password login if the token is invalid.
+        :param path: The path to the token file.
+        :type path: str
+        :param fallback_to_pwd: Whether to fallback to username/password login if the token is invalid.
+        :type fallback_to_pwd: bool
         """
         with open(path) as rf:
             token = json.load(rf)
@@ -133,9 +131,7 @@ class CASClient:
         return cls(login_by_token)
 
     def save_token(self, path: str):
-        """
-        Save the token to the file.
-        """
+        """Save the token to the file."""
         for cookie in self._client.cookies.jar:
             if cookie.name == "SOURCEID_TGC":
                 with open(path, "w") as wf:
@@ -144,15 +140,11 @@ class CASClient:
         raise RuntimeError("Failed to get token")
 
     async def logout(self):
-        """
-        Logout from the system.
-        """
+        """Logout from the system."""
         await self._client.get("/gate/logout")
 
     async def get_info(self):
-        """
-        Get the user's information. If the user is not logged in, an error will be raised.
-        """
+        """Get the user's information. If the user is not logged in, an error will be raised."""
         user: dict[str, str] = (
             await self._client.get("/gate/getUser", follow_redirects=True)
         ).json()

@@ -53,6 +53,8 @@ class Turn(NamedTuple):
 
 
 class EAMSClient:
+    """The Educational Administration Management System (EAMS) client for USTC."""
+
     def __init__(self, clients: list[AsyncClient]):
         if len(clients) == 0:
             raise ValueError("At least one client is required")

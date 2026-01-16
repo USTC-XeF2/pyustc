@@ -57,7 +57,6 @@ async def examples():
 
 
 async def main():
-    async with CASClient.login_by_pwd() as client:
-        async with YouthService() as service:
-            await service.login(client)
-            await examples()
+    async with CASClient.login_by_pwd() as client, YouthService() as service:
+        await service.login(client)
+        await examples()

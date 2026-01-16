@@ -2,9 +2,7 @@ from collections.abc import Awaitable, Callable
 
 
 class UserInfo:
-    """
-    The user's information in the CAS system.
-    """
+    """The user's information in the CAS system."""
 
     def __init__(
         self, id: str, data: dict[str, str], get_nomask: Callable[[str], Awaitable[str]]
