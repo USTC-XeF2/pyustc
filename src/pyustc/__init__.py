@@ -7,4 +7,4 @@ from .young import YouthService
 __all__ = ["CASClient", "EAMSClient", "YouthService"]
 
 __author__ = "XeF2"
-__version__ = "1.1.0"
+__version__ = "1.1.1"
