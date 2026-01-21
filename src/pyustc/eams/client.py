@@ -111,7 +111,7 @@ class EAMSClient:
         self._student_id = int(student_id)
 
         matches = re.finditer(
-            r'<option([^>]*)value="(\d+)"[^>]*>(.+)</option>', res.text
+            r'<option([^>]*)value="(\d+)"[^>]*>(.+?)</option>', res.text
         )
         for match in matches:
             full_attr = match.group(1)

@@ -1,4 +1,4 @@
-from itertools import cycle
+from collections.abc import Iterator
 from typing import Any
 
 from httpx import AsyncClient
@@ -83,7 +83,7 @@ class GradeSheet:
 
 
 class GradeManager:
-    async def __init__(self, client_pool: cycle[AsyncClient]):
+    async def __init__(self, client_pool: Iterator[AsyncClient]):
         self._client_pool = client_pool
 
     async def _get(self, url: str, params: dict[str, Any] | None = None):

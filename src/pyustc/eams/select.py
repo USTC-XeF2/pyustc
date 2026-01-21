@@ -1,5 +1,4 @@
-from collections.abc import Iterable
-from itertools import cycle
+from collections.abc import Iterable, Iterator
 from typing import Any
 
 from httpx import AsyncClient
@@ -52,7 +51,9 @@ class AddDropResponse:
 
 
 class CourseSelectionSystem:
-    def __init__(self, turn_id: int, student_id: int, client_pool: cycle[AsyncClient]):
+    def __init__(
+        self, turn_id: int, student_id: int, client_pool: Iterator[AsyncClient]
+    ):
         self._turn_id = turn_id
         self._student_id = student_id
         self._client_pool = client_pool

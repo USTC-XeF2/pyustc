@@ -1,5 +1,5 @@
 import asyncio
-from itertools import cycle
+from collections.abc import Iterator
 from typing import Any
 
 from httpx import AsyncClient
@@ -13,7 +13,7 @@ class CourseAdjustmentSystem:
         turn_id: int,
         semester_id: int,
         student_id: int,
-        client_pool: cycle[AsyncClient],
+        client_pool: Iterator[AsyncClient],
     ):
         self._turn_id = turn_id
         self._semester_id = semester_id
