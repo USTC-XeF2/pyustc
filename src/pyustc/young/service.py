@@ -38,7 +38,7 @@ class YouthService:
         data = await self.request(
             "/cas/client/checkSsoLogin",
             "get",
-            params={"ticket": client.get_ticket(service_url), "service": service_url},
+            params={"ticket": await client.get_ticket(service_url), "service": service_url},
             need_token=False,
         )
         if not data["success"]:
@@ -75,7 +75,7 @@ class YouthService:
         return (
             await self._client.request(
                 method,
-                urljoin("/login/wisdom-group-learning-bg", url),
+                    urljoin("/login/wisdom-group-learning-bg/", url.lstrip("/")),
                 params={
                     "requestParams": self._encrypt(params or {}, timestamp),
                     "_t": timestamp,
