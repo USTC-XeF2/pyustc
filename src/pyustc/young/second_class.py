@@ -9,6 +9,7 @@ from .service import get_service
 
 
 class Status(Enum):
+    PUBLISHED = 10, "发布"
     APPLYING = 26, "报名中"
     APPLY_ENDED = 28, "报名已结束"
     HOUR_PUBLIC = 30, "学时公示中"
