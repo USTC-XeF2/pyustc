@@ -9,6 +9,7 @@ from .service import get_service
 
 
 class Status(Enum):
+    ABNORMAL = -3, "异常结项"
     PUBLISHED = 10, "发布"
     APPLYING = 26, "报名中"
     APPLY_ENDED = 28, "报名已结束"
@@ -157,14 +158,20 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
 
     @property
     def create_time(self):
+        if self.data.get("createTime") is None:
+            return None
         return TimePeriod.parse_time(self.data["createTime"])
 
     @property
-    def apply_time(self):
+    def apply_time(self) -> TimePeriod | None:
+        if self.data.get("applySt") is None or self.data.get("applyEt") is None:
+            return None
         return TimePeriod(self.data["applySt"], self.data["applyEt"])
 
     @property
     def hold_time(self):
+        if self.data.get("st") is None or self.data.get("et") is None:
+            return None
         return TimePeriod(self.data["st"], self.data["et"])
 
     @property
