@@ -35,13 +35,39 @@ class CourseAdjustmentSystem:
     async def _get(self, url: str, **kwargs: Any):
         return (
             await next(self._client_pool).post(
-                "for-std/course-adjustment-apply/" + url, **kwargs
+                "/for-std/course-adjustment-apply/" + url, **kwargs
             )
         ).json()
 
+    async def add(self, lesson: Lesson, reason: str, confirm_retake: bool = False):
+        data: dict[str, Any] = {
+            "newLessonAssoc": lesson.id,
+            "studentAssoc": self.student_id,
+            "semesterAssoc": self.semester_id,
+            "bizTypeAssoc": 2,
+            "applyTypeAssoc": 1,
+            "applyReason": reason,
+            "retake": False,
+            "scheduleGroupAssoc": None,
+        }
+        precheck_res = await self._get("preCheck", json=[data])
+        if error := precheck_res["errors"]["allErrors"]:
+            raise RuntimeError(error[0])
+        retake_res = await next(self._client_pool).get(
+            "/for-std/course-adjustment-apply/getRetake",
+            params={
+                "lessonIds": lesson.id,
+                "studentId": self.student_id,
+                "bizTypeId": 2,
+            },
+        )
+        if len(retake_res.json()) > 0 and not confirm_retake:
+            raise RuntimeError("Retake detected. Set confirm_retake=True to confirm.")
+        await self._get("selection-apply/save", json=data)
+
     async def change_class(
         self,
-        lesson: Lesson,
+        old_lesson: Lesson,
         new_lesson: Lesson,
         reason: str,
         retry: int = 3,
@@ -60,7 +86,7 @@ class CourseAdjustmentSystem:
                 "courseSelectTurnAssoc": self.turn_id,
                 "saveCmds": [
                     {
-                        "oldLessonAssoc": lesson.id,
+                        "oldLessonAssoc": old_lesson.id,
                         "newLessonAssoc": new_lesson.id,
                         "applyReason": reason,
                         **data,

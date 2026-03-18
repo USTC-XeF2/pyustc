@@ -104,14 +104,19 @@ class EAMSClient:
         return next(self._client_pool)
 
     async def __aenter__(self):
-        res = await self._client.get("/for-std/course-table")
-        student_id = res.url.path.split("/")[-1]
+        results = await asyncio.gather(
+            *(c.get("/for-std/course-table") for c in self._clients)
+        )
+        if not all(res.is_success for res in results):
+            raise RuntimeError("Failed to get course table")
+
+        student_id = results[0].url.path.split("/")[-1]
         if not student_id.isdigit():
             raise RuntimeError("Failed to get student id")
         self._student_id = int(student_id)
 
         matches = re.finditer(
-            r'<option([^>]*)value="(\d+)"[^>]*>(.+?)</option>', res.text
+            r'<option([^>]*)value="(\d+)"[^>]*>(.+?)</option>', results[0].text
         )
         for match in matches:
             full_attr = match.group(1)
