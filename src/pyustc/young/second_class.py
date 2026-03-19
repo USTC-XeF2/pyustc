@@ -216,10 +216,10 @@ class SecondClass(metaclass=singleton_by_key_meta(lambda id, data: id)):  # type
 
     @property
     def department(self):
-        if "businessDeptName" not in self.data:
+        if "bussinessDeptName" not in self.data:
             return None
         return Department(
-            self.data["businessDeptId"], self.data["businessDeptName"], level=-1
+            self.data["businessDeptId"], self.data["bussinessDeptName"], level=-1
         )
 
     @property
