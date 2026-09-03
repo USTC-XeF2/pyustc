@@ -6,6 +6,7 @@
 
 import hashlib
 import json
+from typing import Any
 
 SIGN_KEY = "BwPimfkcRKAmHcbL9tnq"  # 硬编码密钥
 
@@ -14,7 +15,7 @@ def md5(s: str) -> str:
     return hashlib.md5(s.encode()).hexdigest()
 
 
-def build_sign(params: dict) -> str:
+def build_sign(params: dict[str, Any]) -> str:
     """
     签名生成:
 
@@ -26,7 +27,7 @@ def build_sign(params: dict) -> str:
     6. 末尾加密钥 -> MD5
     """
     keys = sorted(params.keys())
-    pairs = []
+    pairs: list[str] = []
     for k in keys:
         v = params[k]
         if v is None:

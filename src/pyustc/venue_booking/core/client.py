@@ -10,6 +10,7 @@ import base64
 import json
 import time
 from types import TracebackType
+from typing import Any, cast
 
 from httpx import AsyncClient, Response
 
@@ -46,19 +47,24 @@ class USTCSportClient:
     async def aclose(self) -> None:
         await self._client.aclose()
 
-    def _headers(self) -> dict:
+    def _headers(self):
         headers = {**HEADERS_BASE, "content-type": "application/json"}
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
         return headers
 
-    def _sign_params(self, data: dict | None = None) -> dict:
+    def _sign_params(self, data: dict[str, Any] | None = None) -> dict[str, Any]:
         ts = int(time.time() * 1000)
-        params = {**(data or {}), "open_id": self.open_id, "version": "1.0.0", "timestamp": ts}
+        params: dict[str, Any] = {
+            **(data or {}),
+            "open_id": self.open_id,
+            "version": "1.0.0",
+            "timestamp": ts,
+        }
         params["sign"] = build_sign(params)
         return params
 
-    def _parse_response(self, resp: Response) -> dict:
+    def _parse_response(self, resp: Response) -> dict[str, Any]:
         text = resp.text
         if not text or "honeypot" in text.lower():
             return {
@@ -67,23 +73,29 @@ class USTCSportClient:
                 "_raw": text[:100] if text else "(empty)",
             }
         try:
-            return resp.json()
+            return cast(dict[str, Any], resp.json())
         except json.JSONDecodeError:
             return {"code": resp.status_code, "message": text[:200]}
 
-    async def login_cas(self, ticket: str, wl: str = "", scene: str = "") -> dict:
+    async def login_cas(
+        self, ticket: str, wl: str = "", scene: str = ""
+    ) -> dict[str, Any]:
         """用 CAS ticket 交换场馆 token。"""
         return await self.post(
             "/login/cas", {"ticket": ticket, "wl_code": wl, "scene": scene}
         )
 
-    async def login_join(self, ci: dict, pi: dict, cp: dict) -> dict:
+    async def login_join(
+        self, ci: dict[str, Any], pi: dict[str, Any], cp: dict[str, Any]
+    ) -> dict[str, Any]:
         """补全用户信息后换取场馆 token。"""
         return await self.post(
             "/login/join", {"cas_info": ci, "player_info": pi, "cas_player": cp}
         )
 
-    async def get(self, path: str, data: dict | None = None) -> dict:
+    async def get(
+        self, path: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """GET: 签名参数通过 URL query 传递"""
         params = self._sign_params(data)
         resp = await self._client.get(
@@ -91,7 +103,9 @@ class USTCSportClient:
         )
         return self._parse_response(resp)
 
-    async def post(self, path: str, data: dict | None = None) -> dict:
+    async def post(
+        self, path: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """POST: 参数签名后 base64 编码放 body"""
         params = self._sign_params(data)
         body = base64.b64encode(
@@ -100,11 +114,13 @@ class USTCSportClient:
             ).encode()
         ).decode()
         resp = await self._client.post(
-            f"{BASE_URL}{path}", data=body, headers=self._headers()
+            f"{BASE_URL}{path}", content=body, headers=self._headers()
         )
         return self._parse_response(resp)
 
-    async def request(self, method: str, path: str, data: dict | None = None) -> dict:
+    async def request(
+        self, method: str, path: str, data: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         """通用请求(PUT/DELETE 等非 POST/GET 方法)"""
         params = self._sign_params(data)
         url = f"{BASE_URL}{path}"

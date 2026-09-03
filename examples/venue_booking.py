@@ -13,6 +13,7 @@
 import asyncio
 import os
 from getpass import getpass
+from typing import Any, cast
 
 from pyustc.venue_booking.core.auth import cas_login, login_with_token
 from pyustc.venue_booking.core.client import USTCSportClient
@@ -26,8 +27,8 @@ async def _login() -> USTCSportClient:
     if token and open_id:
         print(f"使用 Token 登录, open_id={open_id!r}")
         return login_with_token(token, open_id)
-    username = input("学号: ")
-    password = getpass("CAS 密码: ")
+    username = await asyncio.to_thread(input, "学号: ")
+    password = await asyncio.to_thread(getpass, "CAS 密码: ")
     return await cas_login(username, password)
 
 
@@ -35,7 +36,12 @@ async def main() -> None:
     client = await _login()
     try:
         me = await profile.my_current(client)
-        player = (me.get("data") or {}).get("player") or {}
+        data = me.get("data")
+        player: dict[str, Any] = {}
+        if isinstance(data, dict):
+            player_value = cast(object, data.get("player"))
+            if isinstance(player_value, dict):
+                player = cast(dict[str, Any], player_value)
         print(f"用户: {player.get('nickname', '?')}")
 
         orders = await profile.my_orders(client, page=1)
