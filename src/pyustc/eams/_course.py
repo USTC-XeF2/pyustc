@@ -48,8 +48,7 @@ class Course:
             return (
                 f"{self.start_time.strftime('%H:%M')}-{self.end_time.strftime('%H:%M')}"
             )
-        else:
-            return self.start_time, self.end_time
+        return self.start_time, self.end_time
 
     def __repr__(self):
         return f"<Course {self.name!r}>"

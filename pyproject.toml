@@ -8,25 +8,25 @@ authors = [
 ]
 requires-python = ">=3.11"
 dependencies = [
-    "fake-useragent>=2.2.0,<3",
     "httpx>=0.28.1,<0.29",
     "pycryptodome>=3.23.0,<4",
+    "ua-generator>=2.1.4,<3",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Operating System :: OS Independent",
-    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
 [build-system]
-requires = ["uv_build>=0.8.13,<0.9.0"]
+requires = ["uv_build>=0.12.9,<0.13.0"]
 build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.411",
     "pytest>=9.1.1",
     "ruff>=0.16.5",
 ]
@@ -35,21 +35,39 @@ dev = [
 Homepage = "https://github.com/USTC-XeF2/pyustc"
 Issues = "https://github.com/USTC-XeF2/pyustc/issues"
 
+[tool.pyright]
+include = [
+    "src",
+    "tests",
+]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+
+[tool.ruff]
+target-version = "py311"
+
 [tool.ruff.lint]
 select = [
-    "F",
     "E",
     "W",
+    "F",
     "I",
-    "UP",
     "N",
-    "PL",
+    "TID",
+    "UP",
     "B",
+    "PLE",
+    "PLW",
     "SIM",
+    "C4",
+    "PIE",
+    "RET",
+    "PTH",
     "PERF",
     "ASYNC",
-    "C4",
-    "TID",
     "RUF",
 ]
 ignore = ["E501"]
+
+[tool.ruff.format]
+docstring-code-format = true

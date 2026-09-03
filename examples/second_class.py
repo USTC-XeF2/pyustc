@@ -41,7 +41,7 @@ async def examples():
         sc.module,
         sc.department,
         sc.labels,
-        sc.conceive
+        sc.conceive,
     )
     if sc.is_series:
         print(await sc.get_children())

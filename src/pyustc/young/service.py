@@ -52,7 +52,7 @@ class YouthService:
         access_token = getattr(
             self, "_access_token", "kPBNkx0sSO3aIBaKDt9d2GJURVJfzFuP"
         )
-        cipher = AES.new(
+        cipher = AES.new(  # pyright: ignore[reportUnknownMemberType]
             access_token[-16:].encode(), AES.MODE_CBC, access_token[-32:-16].encode()
         )
         json_string = json.dumps(data | {"_t": timestamp})

@@ -100,7 +100,7 @@ class CourseAdjustmentSystem:
                 "change-class",
                 {"success": False, "errorMessage": res["errors"]["allErrors"][0]},
             )
-        elif res["saveApply"]:
+        if res["saveApply"]:
             return AddDropResponse("change-class", {"success": True})
         for _ in range(retry):
             r = await self._get(
@@ -110,3 +110,4 @@ class CourseAdjustmentSystem:
             if r:
                 return AddDropResponse("change-class", r)
             await asyncio.sleep(sleep)
+        return None

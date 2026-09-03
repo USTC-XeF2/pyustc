@@ -12,7 +12,7 @@ import time
 from types import TracebackType
 from typing import Any, cast
 
-from httpx import AsyncClient, Response
+from httpx import AsyncBaseTransport, AsyncClient, Response
 
 from pyustc.venue_booking.core.sign import build_sign
 
@@ -27,10 +27,15 @@ HEADERS_BASE = {
 class USTCSportClient:
     """核心 API 客户端"""
 
-    def __init__(self, token: str = "", open_id: str = ""):
+    def __init__(
+        self,
+        token: str = "",
+        open_id: str = "",
+        transport: AsyncBaseTransport | None = None,
+    ):
         self.token = token
         self.open_id = open_id
-        self._client = AsyncClient(timeout=15)
+        self._client = AsyncClient(timeout=15, transport=transport)
 
     async def __aenter__(self):
         await self._client.__aenter__()

@@ -3,6 +3,7 @@ import json
 import os
 import re
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from types import TracebackType
 from urllib.parse import parse_qs, urlparse
 
@@ -68,7 +69,7 @@ class CASClient:
 
         crypto = crypto.group(1)
         flow_key = flow_key.group(1)
-        cipher = AES.new(base64.b64decode(crypto), AES.MODE_ECB)
+        cipher = AES.new(base64.b64decode(crypto), AES.MODE_ECB)  # pyright: ignore[reportUnknownMemberType]
 
         def aes_encrypt(data: str):
             return base64.b64encode(
@@ -104,15 +105,15 @@ class CASClient:
         return cls(lambda client: cls._set_token_by_pwd(client, username, password))
 
     @classmethod
-    def load_token(cls, path: str, fallback_to_pwd: bool = True):
+    def load_token(cls, path: str | Path, fallback_to_pwd: bool = True):
         """Load the token from the file and create a CASClient instance.
 
         :param path: The path to the token file.
-        :type path: str
+        :type path: str | Path
         :param fallback_to_pwd: Whether to fallback to username/password login if the token is invalid.
         :type fallback_to_pwd: bool
         """
-        with open(path) as rf:
+        with Path(path).open("r", encoding="utf-8") as rf:
             token = json.load(rf)
 
         async def login_by_token(client: AsyncClient):
@@ -130,11 +131,11 @@ class CASClient:
 
         return cls(login_by_token)
 
-    def save_token(self, path: str):
+    def save_token(self, path: str | Path):
         """Save the token to the file."""
         for cookie in self._client.cookies.jar:
             if cookie.name == "SOURCEID_TGC":
-                with open(path, "w") as wf:
+                with Path(path).open("w", encoding="utf-8") as wf:
                     json.dump({"domain": cookie.domain, "tgc": cookie.value}, wf)
                 return
         raise RuntimeError("Failed to get token")

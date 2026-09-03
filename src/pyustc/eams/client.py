@@ -4,8 +4,8 @@ from enum import StrEnum
 from itertools import cycle
 from typing import NamedTuple
 
-from fake_useragent import UserAgent
 from httpx import AsyncClient
+from ua_generator import generate  # pyright: ignore[reportUnknownVariableType]
 
 from pyustc._url import generate_url, root_url
 from pyustc.cas import CASClient
@@ -15,7 +15,7 @@ from ._grade import GradeManager
 from .adjust import CourseAdjustmentSystem
 from .select import CourseSelectionSystem
 
-_ua = UserAgent(platforms="desktop")
+_ua = generate(device="desktop")
 
 
 class Season(StrEnum):
@@ -67,7 +67,10 @@ class EAMSClient:
 
     @classmethod
     async def create(
-        cls, cas_client: CASClient, client_count: int = 1, user_agent: str | None = None
+        cls,
+        cas_client: CASClient,
+        client_count: int = 1,
+        headers: dict[str, str] | None = None,
     ):
         """Create an EAMSClient instance by logging in through the provided CASClient.
 
@@ -75,14 +78,14 @@ class EAMSClient:
         :type cas_client: CASClient
         :param client_count: Number of client instances to create in the pool.
         :type client_count: int
-        :param user_agent: User-Agent string to use for the clients. If None, a random one will be used.
-        :type user_agent: str | None
+        :param headers: Headers to use for the clients. If None, a random User-Agent will be used.
+        :type headers: dict[str, str] | None
         """
         clients = [
             AsyncClient(
                 base_url=root_url["eams"],
                 follow_redirects=True,
-                headers={"User-Agent": user_agent or _ua.random},
+                headers=headers or _ua.headers.get(),
             )
             for _ in range(client_count)
         ]

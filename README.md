@@ -5,55 +5,27 @@
 ![last commit](https://img.shields.io/github/last-commit/USTC-XeF2/pyustc)
 [![commits since last release](https://img.shields.io/github/commits-since/USTC-XeF2/pyustc/latest.svg)](https://github.com/USTC-XeF2/pyustc/releases)
 
-A Python package that allows for quick use of USTC network services.
+中国科学技术大学网络服务 Python 库。
 
-## Features
+## 功能特性
 
-- **Central Authentication Service**: Simplifies login and session management.
-- **Educational Administration Management System**: Access course table, grades, and course planning tools.
-- **Young Platform**: Manage Second Classes.
-- **Venue Booking (sport)**: Explore venues, query availability, and manage own orders.
+- **统一身份认证服务**：简化登录与会话管理。
+- **教务系统**：课表、成绩及选课工具。
+- **第二课堂平台**：管理第二课堂活动。
+- **体育场馆​​预订**：浏览场馆、查询空闲状态及管理个人订单。
 
-## Installation and Usage
-
-Install PyUSTC via pip:
+## 安装与使用
 
 ```bash
 pip install pyustc
 ```
 
-For examples and detailed documentation, see [Examples](https://github.com/USTC-XeF2/pyustc/tree/main/examples).
+有关示例和详细文档，请参阅 [示例](https://github.com/USTC-XeF2/pyustc/tree/main/examples)。 
 
-Quick venue-booking example (see `examples/venue_booking.py` for details):
+## 贡献
 
-```python
-import asyncio
+请通过 [GitHub](https://github.com/USTC-XeF2/pyustc) 提交 Issue、代码或建议。
 
-from pyustc.venue_booking.core.auth import cas_login, login_with_token
-from pyustc.venue_booking.personal import profile
-from pyustc.venue_booking.venue.query import sport_index, venue_daily
-
-
-async def main() -> None:
-    client = login_with_token(token="...", open_id="...")
-
-    await profile.my_current(client)
-    await sport_index(client)
-    await venue_daily(client, "tennis")
-    await client.aclose()
-
-    # 或 CAS 账密登录: client = await cas_login(username="...", password="...")
-
-
-asyncio.run(main())
-```
-
-Booking and check-in writes are not included: those endpoints require a client-side generated verification field that cannot be reliably constructed from Python.
-
-## Contributing
-
-We welcome contributions of all types! Submit issues, code, or suggestions via [GitHub](https://github.com/USTC-XeF2/pyustc).
-
-## License
+## 许可证
 
 [MIT](https://github.com/USTC-XeF2/pyustc/blob/main/LICENSE)
