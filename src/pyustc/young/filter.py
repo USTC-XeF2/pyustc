@@ -152,7 +152,7 @@ class Label(Tag):
 class SCFilter:
     """The filter for the second class."""
 
-    def __init__(  # noqa: PLR0913
+    def __init__(  # noqa: PLR0913, PLR0917
         self,
         name: str | None = None,
         time_period: TimePeriod | None = None,
@@ -213,7 +213,9 @@ class SCFilter:
         if not self.fuzzy_name and self.name != sc.name:
             return False
         if self.time_period:
-            if self.strict_time:
+            if not sc.hold_time:
+                return False
+            elif self.strict_time:
                 if not self.time_period.is_contain(sc.hold_time):
                     return False
             elif not self.time_period.is_overlap(sc.hold_time):
