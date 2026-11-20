@@ -42,6 +42,10 @@ class Course:
         self.start_time = datetime.strptime(data["startDate"], "%H:%M").time()
         self.end_time = datetime.strptime(data["endDate"], "%H:%M").time()
         self.unit: tuple[int, int] = (data["startUnit"], data["endUnit"])
+        self.course_code: str = data.get("courseCode", "")
+        self.credits: float = data.get("credits", 0.0)
+        self.weeks: list[int] = list(data.get("weeksArray") or [])
+        self.weeks_str: str = data.get("weeksStr", "")
 
     def time(self, format: bool = True):
         if format:
