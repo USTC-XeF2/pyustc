@@ -11,6 +11,7 @@ from pyustc._url import generate_url, root_url
 from pyustc.cas import CASClient
 
 from ._course import CourseTable
+from ._exam import Exam, parse_exams
 from ._grade import GradeManager
 from .adjust import CourseAdjustmentSystem
 from .select import CourseSelectionSystem
@@ -157,6 +158,14 @@ class EAMSClient:
         params = {"weekIndex": week or ""}
         res = await self._client.get(url, params=params)
         return CourseTable(res.json()["studentTableVm"], week)
+
+    async def get_exams(self) -> list[Exam]:
+        """Get the exam arrangements of the current semester."""
+        student_id, _ = self._get_student_id_and_semesters()
+        res = await self._client.get(f"/for-std/exam-arrange/info/{student_id}")
+        if not res.is_success:
+            raise RuntimeError("Failed to get exams")
+        return parse_exams(res.text)
 
     def get_grade_manager(self):
         """Get the grade manager."""
