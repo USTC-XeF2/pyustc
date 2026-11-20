@@ -17,6 +17,34 @@ from .info import UserInfo
 
 AsyncTokenSetter = Callable[[AsyncClient], Awaitable[bool]]
 
+_PORTAL_SERVICE = "https://id.ustc.edu.cn/gate/home"
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36"
+    ),
+    "Accept-Language": "zh-CN,zh;q=0.9",
+}
+_PORTAL_HEADERS = {
+    **_BROWSER_HEADERS,
+    "Accept": "application/json, text/plain, */*",
+    "Referer": _PORTAL_SERVICE,
+}
+
+
+async def _open_portal_session(client: AsyncClient) -> None:
+    """Complete the portal SSO handshake.
+
+    The portal (`/gate/*`) rejects a bare CAS cookie with `401` until the
+    browser-facing service login has been followed once, so that ticket route
+    is opened here on behalf of the page that would normally do it.
+    """
+    res = await client.get("/cas/login", params={"service": _PORTAL_SERVICE})
+    location = res.headers.get("Location")
+    if not res.is_redirect or not location:
+        return
+    await client.get(location, headers=_PORTAL_HEADERS, follow_redirects=True)
+
 
 class CASClient:
     """The Central Authentication Service (CAS) client for USTC."""
@@ -25,7 +53,9 @@ class CASClient:
         self, token_setter: AsyncTokenSetter | None = None, base_url: str | None = None
     ):
         self._token_setter = token_setter
-        self._client = AsyncClient(base_url=base_url or root_url["id"])
+        self._client = AsyncClient(
+            base_url=base_url or root_url["id"], headers=_BROWSER_HEADERS
+        )
 
     async def __aenter__(self):
         await self._client.__aenter__()
@@ -39,6 +69,8 @@ class CASClient:
             res = await self._client.get("/cas/login")
             if not res.is_redirect:
                 raise RuntimeError("Failed to login with the token")
+
+        await _open_portal_session(self._client)
 
         return self
 
@@ -147,15 +179,21 @@ class CASClient:
     async def get_info(self):
         """Get the user's information. If the user is not logged in, an error will be raised."""
         user: dict[str, str] = (
-            await self._client.get("/gate/getUser", follow_redirects=True)
+            await self._client.get(
+                "/gate/getUser", headers=_PORTAL_HEADERS, follow_redirects=True
+            )
         ).json()
         if object_id := user.get("objectId"):
             person_id = (
-                await self._client.get(f"/gate/linkid/api/user/getPersonId/{object_id}")
+                await self._client.get(
+                    f"/gate/linkid/api/user/getPersonId/{object_id}",
+                    headers=_PORTAL_HEADERS,
+                )
             ).json()["data"]
             info = (
                 await self._client.post(
-                    f"/gate/linkid/api/aggregate/user/userInfo/{person_id}"
+                    f"/gate/linkid/api/aggregate/user/userInfo/{person_id}",
+                    headers=_PORTAL_HEADERS,
                 )
             ).json()["data"]
 
@@ -163,6 +201,7 @@ class CASClient:
                 return (
                     await self._client.post(
                         "/gate/linkid/api/aggregate/user/getNoMaskData",
+                        headers=_PORTAL_HEADERS,
                         json={"indentityId": object_id, "standardKey": key},
                     )
                 ).json()["data"]
